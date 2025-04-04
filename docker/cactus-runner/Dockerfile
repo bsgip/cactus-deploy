@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-RUN apt-get update; apt-get install -y git
+RUN apt-get update; apt-get install -y git postgresql-client
 
 # Copy app + dependencies
 COPY ./src /app/src
