@@ -7,7 +7,7 @@ RUN apt-get update; apt-get install -y git
 RUN --mount=type=secret,id=github_pat,uid=50000 git config --global url."https://ssh:$(cat /run/secrets/github_pat)@github.com/".insteadOf "ssh://git@github.com/"
 
 # Install app / dependencies
-RUN pip install --no-cache-dir "git+ssh://git@github.com/bsgip/cactus-runner.git@run/app" gunicorn
+RUN pip install --no-cache-dir "git+ssh://git@github.com/bsgip/cactus-runner.git" gunicorn
 
 # RUN stage
 FROM  python:3.12-slim
