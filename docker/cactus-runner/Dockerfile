@@ -7,7 +7,6 @@ RUN apt-get update; apt-get install -y git
 RUN --mount=type=secret,id=github_pat,uid=50000 git config --global url."https://ssh:$(cat /run/secrets/github_pat)@github.com/".insteadOf "ssh://git@github.com/"
 
 # Install app / dependencies
-WORKDIR /app
 RUN pip install --no-cache-dir "git+ssh://git@github.com/bsgip/cactus-runner.git@run/app" gunicorn
 
 # RUN stage
@@ -18,6 +17,9 @@ RUN apt update && apt install --no-install-recommends -y postgresql-client && rm
 RUN useradd -ms /bin/bash appuser
 USER appuser
 WORKDIR /app
+RUN mkdir -p config/logging
+RUN mkdir logs
+COPY ./logconf.json /app/config/logging/config.json
 
 # Copy env
 COPY --from=build --chown=appuser:appuser /usr/local/lib/  /usr/local/lib/

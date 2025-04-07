@@ -1,0 +1,69 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "filters": {
+        "no_errors": {
+            "()": "cactus_runner.app.log.NonErrorFilter"
+        }
+    },
+    "formatters": {
+        "simple": {
+            "format": "%(levelname)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+        },
+        "jsonl": {
+            "()": "cactus_runner.app.log.JSONLFormatter",
+            "fmt_keys": {
+                "level": "levelname",
+                "message": "message",
+                "timestamp": "timestamp",
+                "logger": "name",
+                "module": "module",
+                "function": "funcName",
+                "line": "lineno",
+                "thread_name": "threadName"
+            }
+        }
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "filters": [
+                "no_errors"
+            ],
+            "formatter": "simple",
+            "stream": "ext://sys.stdout"
+        },
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "level": "WARNING",
+            "formatter": "simple",
+            "stream": "ext://sys.stderr"
+        },
+        "jsonlfile": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "INFO",
+            "formatter": "jsonl",
+            "filename": "logs/cactus_runner.jsonl",
+            "maxBytes": 10000000,
+            "backupCount": 3
+        },
+        "queue_handler": {
+            "class": "logging.handlers.QueueHandler",
+            "handlers": [
+                "stdout",
+                "stderr",
+                "jsonlfile"
+            ],
+            "respect_handler_level": true
+        }
+    },
+    "loggers": {
+        "root": {
+            "level": "DEBUG",
+            "handlers": [
+                "queue_handler"
+            ]
+        }
+    }
+}
