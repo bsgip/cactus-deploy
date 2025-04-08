@@ -88,24 +88,33 @@ if [[ ! -f "$key_path" ]]; then
     exit 1
 fi
 
-# Extract domain from the cert
-domain=$(openssl x509 -in "$cert_path" -noout -text | grep -A1 "Subject Alternative Name" | grep "DNS" | head -n1 | awk -F 'DNS:' '{print $2}' | tr -d ' ,')
+# Extract all SANs from cert
+san_list=($(openssl x509 -in "$cert_path" -noout -text \
+        | awk '/Subject Alternative Name/ {getline; print}' \
+| sed -E 's/DNS://g; s/, /\n/g'))
 
-# Check for SANs, then fallback to CN
-if [[ -z "$domain" ]]; then
+if [[ ${#san_list[@]} -eq 0 ]]; then
+    # Fall back to CN if no SANs found
     domain=$(openssl x509 -in "$cert_path" -noout -subject | sed -n 's/.*CN *= *\([^ /]*\).*/\1/p')
+    if [[ -z "$domain" ]]; then
+        echo "Error: Could not determine any domain from the certificate."
+        exit 1
+    fi
+    echo "No SANs found. Using CN: $domain"
+else
+    echo "Available domains found in certificate, pick one:"
+    select domain in "${san_list[@]}"; do
+        if [[ -n "$domain" ]]; then
+            echo "You selected: $domain"
+            break
+        else
+            echo "Invalid selection. Try again."
+        fi
+    done
 fi
 
-if [[ -z "$domain" ]]; then
-    echo "Error: Could not determine the domain from the certificate."
-    exit 1
-fi
-
-# Ask user if domain is correct before proceeding
-echo "Extracted domain from cert: $domain"
-
-read -p "Proceed certificate install for this domain? (y/N): " confirm
-confirm=${confirm,,}  # lowercase
+read -p "Proceed certificate install for domain '$domain'? (y/N): " confirm
+confirm=${confirm,,}
 
 if [[ "$confirm" != "y" ]]; then
     echo "Operation aborted by user."
