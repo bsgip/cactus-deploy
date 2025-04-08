@@ -114,7 +114,7 @@ else
 fi
 
 read -p "Proceed certificate install for domain '$domain'? (y/N): " confirm
-confirm=${confirm,,}
+confirm=${confirm,,} # lowercase
 
 if [[ "$confirm" != "y" ]]; then
     echo "Operation aborted by user."
