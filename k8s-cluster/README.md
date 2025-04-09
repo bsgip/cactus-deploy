@@ -101,14 +101,14 @@ kubectl create secret generic orchestrator-db-secret --from-literal=ORCHESTRATOR
 
 # UI secrets:
 # Oauth2 and app related secrets
-kubectl create secret generic cactus-ui-oauth2-client-id --from-literal=OAUTH2_CLIENT_ID='<oauth2-client-id>'
-kubectl create secret generic cactus-ui-oauth2-client-secret --from-literal=OAUTH2_CLIENT_ID='<oauth2-client-secret>'
-kubectl create secret generic cactus-ui-oauth2-domain --from-literal=OAUTH2_DOMAIN='<oauth2-domain>'
-kubectl create secret generic cactus-ui-app-key --from-literal=APP_SECRET_KEY='<app-secret-key>'
+kubectl create secret generic -n test-orchestration cactus-ui-oauth2-client-id --from-literal=OAUTH2_CLIENT_ID='<oauth2-client-id>'
+kubectl create secret generic -n test-orchestration cactus-ui-oauth2-client-secret --from-literal=OAUTH2_CLIENT_SECRET='<oauth2-client-secret>'
+kubectl create secret generic -n test-orchestration cactus-ui-oauth2-domain --from-literal=OAUTH2_DOMAIN='<oauth2-domain>'
+kubectl create secret generic -n test-orchestration cactus-ui-app-key --from-literal=APP_SECRET_KEY='<app-secret-key>'
 ```
-1. We create the harness-orchestrator service. This manages the on-demand creation and deletion of the full envoy 'test environment' stack.
+1. We create the cactus-orchestrator service. This manages the on-demand creation and deletion of the full envoy 'test environment' stack.
 ```
-microk8s kubectl apply -f harness-orchestrator -n test-orchestration
+microk8s kubectl apply -f cactus-orchestrator -n test-orchestration
 ```
 
 2. Currently, we create 'template' resources that represent a complete envoy test environments. These are cloned when a client requests a new test environment. Create the template resources with:

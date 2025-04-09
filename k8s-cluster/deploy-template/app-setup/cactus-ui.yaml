@@ -17,23 +17,23 @@ spec:
         - name : AUTH0_CLIENT_ID
           valueFrom:
               secretKeyRef:
-              name: cactus-ui-oauth2-client-id
-              key: OAUTH2_CLIENT_ID
+                name: cactus-ui-oauth2-client-id
+                key: OAUTH2_CLIENT_ID
         - name: AUTH0_CLIENT_SECRET
           valueFrom:
               secretKeyRef:
-              name: cactus-ui-oauth2-client-secret
-              key: OAUTH2_CLIENT_SECRET
+                name: cactus-ui-oauth2-client-secret
+                key: OAUTH2_CLIENT_SECRET
         - name: AUTH0_DOMAIN
           valueFrom:
               secretKeyRef:
-              name: cactus-ui-oauth2-domain
-              key: OAUTH2_DOMAIN
+                name: cactus-ui-oauth2-domain
+                key: OAUTH2_DOMAIN
         - name: APP_SECRET_KEY
           valueFrom:
               secretKeyRef:
-              name: cactus-ui-app-key
-              key: APP_SECRET_KEY
+                name: cactus-ui-app-key
+                key: APP_SECRET_KEY
         - name: CACTUS_ORCHESTRATOR_BASEURL
           value: ${CACTUS_ORCHESTRATOR_BASEURL}
         - name: CACTUS_ORCHESTRATOR_AUDIENCE
