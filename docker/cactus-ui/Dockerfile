@@ -7,7 +7,7 @@ RUN apt update && apt install --no-install-recommends -y git && rm -rf /var/lib/
 RUN --mount=type=secret,id=github_pat,uid=50000 git config --global url."https://ssh:$(cat /run/secrets/github_pat)@github.com/".insteadOf "ssh://git@github.com/"
 
 # Install deps
-RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-ui.git@dockerbuild
+RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-ui.git
 
 # RUN stage
 FROM python:3.12-slim
