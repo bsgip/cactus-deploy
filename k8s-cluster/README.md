@@ -30,10 +30,13 @@ microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifest
 2. Define a .env file with the following vars:
 ```
 APP_ENVOY_IMAGE='<registry>/<image-name>:<tag>'
-APP_HARNESS_RUNNER_IMAGE='<registry>/<image-name>:<tag>'
-ORCHESTRATOR_K8S_MANAGER_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_RUNNER_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_ORCHESTRATOR_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_UI_IMAGE='<registry>/<image-name>:<tag>'
 TEST_EXECUTION_FQDN='<subdomain>.<domain>.<tld>'
 TEST_ORCHESTRATION_FQDN='<subdomain>.<domain>.<tld>'
+CACTUS_ORCHESTRATOR_BASEURL='https://<svc_name>.<namespace>.svc.cluster.local'
+CACTUS_ORCHESTRATOR_AUDIENCE='<oauth2-audience>'
 ```
 
 2. The `templates-to-manifests.sh` script copies the `deploy-template` directory and applies environment variables to the Kubernetes manifest templates. Usage:
@@ -88,13 +91,20 @@ k8s create secret tls tls-ca-cert-key-pair -n test-execution --cert <path-to-ca.
 # for test-execution ingress
 ingress/install-server-certs.sh --cert </path/to/cert.crt> --key </path/to/key.key> --namespace test-execution --ingress test-execution-ingress
 
-# TODO: for user-interface ingress
+ingress/install-server-certs.sh --cert </path/to/cert.crt> --key </path/to/key.key> --namespace test-orchestration --ingress user-interface-ingress
 ```
 ## K8s resource setup (./app-setup)
 0. Create app secrets.
 ```
 # This secret is the connection string the harness-orchestrator uses to connect to the db. NOTE: Alembic scripts are provided for running migrations under project-root/alembic/.
-kubectl create secret generic orchestrator-secrets --from-literal=ORCHESTRATOR_DATABASE_URL='<python-sqlalchemy-connstr>'
+kubectl create secret generic orchestrator-db-secret --from-literal=ORCHESTRATOR_DATABASE_URL='<python-sqlalchemy-connstr>'
+
+# UI secrets:
+# Oauth2 and app related secrets
+kubectl create secret generic cactus-ui-oauth2-client-id --from-literal=OAUTH2_CLIENT_ID='<oauth2-client-id>'
+kubectl create secret generic cactus-ui-oauth2-client-secret --from-literal=OAUTH2_CLIENT_ID='<oauth2-client-secret>'
+kubectl create secret generic cactus-ui-oauth2-domain --from-literal=OAUTH2_DOMAIN='<oauth2-domain>'
+kubectl create secret generic cactus-ui-app-key --from-literal=APP_SECRET_KEY='<app-secret-key>'
 ```
 1. We create the harness-orchestrator service. This manages the on-demand creation and deletion of the full envoy 'test environment' stack.
 ```

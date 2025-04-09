@@ -9,7 +9,7 @@ spec:
   serviceAccountName: pod-creator
   containers:
     - name: environment
-      image: ${ORCHESTRATOR_K8S_MANAGER_IMAGE}
+      image: ${CACTUS_ORCHESTRATOR_IMAGE}
       ports:
         - containerPort: 8080
       imagePullPolicy: Always

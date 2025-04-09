@@ -35,7 +35,7 @@ spec:
       initContainers:
       - name: harness-runner
         restartPolicy: Always
-        image: ${APP_HARNESS_RUNNER_IMAGE}
+        image: ${CACTUS_RUNNER_IMAGE}
         ports:
           - containerPort: 8080
         env:

@@ -10,6 +10,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: test-orchestration-service
+            name: cactus-ui-service
             port:
               number: 80
