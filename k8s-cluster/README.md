@@ -47,6 +47,8 @@ JWTAUTH_AUDIENCE="<audience>"
 CACTUS_UI_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_ORCHESTRATOR_BASEURL='https://<svc_name>.<namespace>.svc.cluster.local'
 CACTUS_ORCHESTRATOR_AUDIENCE='<audience>'
+CACTUS_PLATFORM_VERSION='v<x.x.x>'
+CACTUS_PLATFORM_SUPPORT_EMAIL='<support@email>'
 
 
 ```

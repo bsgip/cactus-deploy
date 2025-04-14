@@ -38,6 +38,10 @@ spec:
           value: ${CACTUS_ORCHESTRATOR_BASEURL}
         - name: CACTUS_ORCHESTRATOR_AUDIENCE
           value: ${CACTUS_ORCHESTRATOR_AUDIENCE}
+        - name: CACTUS_PLATFORM_VERSION
+          value: ${CACTUS_PLATFORM_VERSION}
+        - name: CACTUS_PLATFORM_SUPPORT_EMAIL
+          value: ${CACTUS_PLATFORM_SUPPORT_EMAIL}
 ---
 apiVersion: v1
 kind: Service
