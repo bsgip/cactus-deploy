@@ -2,14 +2,17 @@
 
 # Exports variables from environment config file, if exists, then runs envoy app.
 
-ENV_FILE="/shared/envoy.env"
+if [ -z "$ENVOY_ENV_FILE" ]; then
+  echo "Error: ENVOY_ENV_FILE environment variable not set."
+  exit 1
+fi
 
-if test -f "$ENV_FILE"; then
+if test -f "$ENVOY_ENV_FILE"; then
   set -a
-    . "$ENV_FILE"
+    . "$ENVOY_ENV_FILE"
   set +a
 else
-    echo "No envfile found at $ENV_FILE"
+    echo "No envfile found at $ENVOY_ENV_FILE"
 fi
 
 

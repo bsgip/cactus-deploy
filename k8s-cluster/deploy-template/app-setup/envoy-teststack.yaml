@@ -43,6 +43,10 @@ spec:
             value: "localhost:8000"
           - name: DATABASE_URL
             value: "postgresql+psycopg://test_user:test_pwd@localhost/test_db"
+          - name: KICKOFF_FILE
+            value: /shared/.kickoff
+          - name: ENVOY_ENV_FILE
+            value: /shared/envoy.env
         volumeMounts:
           - name: shared
             mountPath: /shared
@@ -75,11 +79,12 @@ spec:
       - name: envoy-teststack-init
         image: ${ENVOY_TESTSTACK_INIT_IMAGE}
         env:
-          - name: "WATCHED_FILE"
+          - name: "KICKOFF_FILE"
             value: "/shared/.kickoff"
         volumeMounts:
           - name: shared
             mountPath: /shared
+
       containers:
         - name: rabbit-mq
           image: rabbitmq:3-management
@@ -135,6 +140,8 @@ spec:
               value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
+            - name: ENVOY_ENV_FILE
+              value: /shared/envoy.env
           volumeMounts:
             - name: shared
               mountPath: /shared
