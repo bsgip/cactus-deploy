@@ -1,1 +1,0 @@
-An image designed to run as an init container in an envoy-teststack service, delaying the startup of main containers until a predefined signal is received.

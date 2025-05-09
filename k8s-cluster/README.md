@@ -30,8 +30,9 @@ microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifest
 2. Define a .env file with the following vars:
 ```
 # envoy teststack
-APP_ENVOY_IMAGE='<registry>/<image-name>:<tag>'
-ENVOY_TESTSTACK_INIT_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_ENVOY_APP_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_ENVOY_DB_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_TESTSTACK_INIT_IMAGE='<registry>/<image-name>:<tag>'
 
 # cactus-runner
 CACTUS_RUNNER_IMAGE='<registry>/<image-name>:<tag>'

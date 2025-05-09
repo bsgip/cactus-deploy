@@ -51,7 +51,7 @@ spec:
           - name: shared
             mountPath: /shared
       - name: envoy-db
-        image: timescale/timescaledb:latest-pg10
+        image: ${CACTUS_ENVOY_DB_IMAGE}
         restartPolicy: Always # i.e. side-car
         ports:
           - containerPort: 5432
@@ -76,8 +76,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 5
 
-      - name: envoy-teststack-init
-        image: ${ENVOY_TESTSTACK_INIT_IMAGE}
+      - name: cactus-teststack-init
+        image: ${CACTUS_TESTSTACK_INIT_IMAGE}
         env:
           - name: "KICKOFF_FILE"
             value: "/shared/.kickoff"
@@ -99,7 +99,7 @@ spec:
 
 
         - name: taskiq-worker
-          image: ${APP_ENVOY_IMAGE}
+          image: ${CACTUS_ENVOY_APP_IMAGE}
           command: ["taskiq", "worker", "envoy.notification.main:broker", "envoy.notification.task"]
           env:
             - name: DATABASE_URL
@@ -114,7 +114,7 @@ spec:
               value: "True"
 
         - name: envoy
-          image: ${APP_ENVOY_IMAGE}
+          image: ${CACTUS_ENVOY_APP_IMAGE}
           command:
             - "sh"
             - "-c"
@@ -147,7 +147,7 @@ spec:
               mountPath: /shared
 
         - name: envoy-admin
-          image: ${APP_ENVOY_IMAGE}
+          image: ${CACTUS_ENVOY_APP_IMAGE}
           ports:
             - containerPort: 8001
           command:
