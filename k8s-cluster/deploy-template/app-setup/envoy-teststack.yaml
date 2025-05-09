@@ -28,13 +28,11 @@ spec:
         app: envoy
     spec:
       volumes:
-        - name: postgres-data
-          emptyDir: {}
-        - name: certificates
+        - name: shared
           emptyDir: {}
       initContainers:
       - name: harness-runner
-        restartPolicy: Always
+        restartPolicy: Always # i.e. side-car
         image: ${CACTUS_RUNNER_IMAGE}
         ports:
           - containerPort: 8080
@@ -45,7 +43,43 @@ spec:
             value: "localhost:8000"
           - name: DATABASE_URL
             value: "postgresql+psycopg://test_user:test_pwd@localhost/test_db"
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
+      - name: envoy-db
+        image: timescale/timescaledb:latest-pg10
+        restartPolicy: Always # i.e. side-car
+        ports:
+          - containerPort: 5432
+        env:
+          - name: POSTGRES_USER
+            value: "test_user"
+          - name: POSTGRES_PASSWORD
+            value: "test_pwd"
+          - name: POSTGRES_DB
+            value: "test_db"
+        readinessProbe:
+          exec:
+            command:
+              - psql
+              - -U
+              - test_user
+              - -d
+              - test_db
+              - -c
+              - SELECT 1 FROM site LIMIT 1;
 
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+      - name: envoy-teststack-init
+        image: ${ENVOY_TESTSTACK_INIT_IMAGE}
+        env:
+          - name: "WATCHED_FILE"
+            value: "/shared/.kickoff"
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
       containers:
         - name: rabbit-mq
           image: rabbitmq:3-management
@@ -58,34 +92,6 @@ spec:
             - name: RABBITMQ_DEFAULT_PASS
               value: "guest"
 
-        # TODO: consider making this the initContainer, may minimise the need of readiness checks
-        - name: envoy-db
-          image: timescale/timescaledb:latest-pg10
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_USER
-              value: "test_user"
-            - name: POSTGRES_PASSWORD
-              value: "test_pwd"
-            - name: POSTGRES_DB
-              value: "test_db"
-          volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command:
-                - psql
-                - -U
-                - test_user
-                - -d
-                - test_db
-                - -c
-                - SELECT 1 FROM site LIMIT 1;
-
-            initialDelaySeconds: 5
-            periodSeconds: 5
 
         - name: taskiq-worker
           image: ${APP_ENVOY_IMAGE}
@@ -129,6 +135,9 @@ spec:
               value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
 
         - name: envoy-admin
           image: ${APP_ENVOY_IMAGE}

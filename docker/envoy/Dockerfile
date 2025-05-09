@@ -18,4 +18,7 @@ ENV LOG_CONFIG=logconf.json
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
-CMD ["sh", "-c", "uvicorn $APP_MODULE --workers $WORKERS --log-config $LOG_CONFIG --host $HOST --port $PORT"]
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]
