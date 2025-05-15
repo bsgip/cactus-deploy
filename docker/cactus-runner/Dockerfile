@@ -14,8 +14,6 @@ FROM  python:3.12-slim
 
 RUN apt update && apt install --no-install-recommends -y postgresql-client && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -ms /bin/bash appuser
-USER appuser
 WORKDIR /app
 RUN mkdir -p config/logging
 RUN mkdir logs
