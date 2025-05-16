@@ -14,11 +14,13 @@ services:
     image: ${CACTUS_RUNNER_IMAGE}
     ports:
       - 127.0.0.1:8080:8080
+    networks:
+      - envoy-net
     volumes:
       - shared:/shared
     environment:
-      - SERVER_URL="envoy:8000"
-      - DATABASE_URL="postgresql+psycopg://test_user:test_pwd@envoy-db/test_db"
+      - SERVER_URL=http://envoy:8000
+      - DATABASE_URL=postgresql+psycopg://test_user:test_pwd@envoy-db:8003/test_db
       - KICKOFF_FILE=/shared/.kickoff
       - ENVOY_ENV_FILE=/shared/envoy.env
 
