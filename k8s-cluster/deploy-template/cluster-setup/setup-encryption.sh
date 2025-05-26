@@ -8,7 +8,7 @@ echo "- This script needs sudo privileges"
 echo "- It involves restarting microk8s"
 echo
 
-set -e  # Exit on error
+set -e # Exit on error
 
 ENCRYPTION_CONFIG_PATH="/var/snap/microk8s/current/certs/encryption-config.yaml"
 
@@ -29,6 +29,7 @@ echo
 if [[ -z "$NEW_KEY" ]]; then
     NEW_KEY=$(openssl rand -base64 32)
     echo "Generated new encryption key."
+    echo $NEW_KEY
 fi
 
 # Extract current encryption key name and make backup existing of config
@@ -45,7 +46,7 @@ fi
 # are selected based on order in this config (first key is used).
 # Once all secrets are re-encrypted with the new key, the old key is removed.
 NEW_KEY_NAME="kss-key-$(date +%s)"
-cat <<EOF | sudo tee $ENCRYPTION_CONFIG_PATH > /dev/null
+cat <<EOF | sudo tee $ENCRYPTION_CONFIG_PATH >/dev/null
 apiVersion: apiserver.config.k8s.io/v1
 kind: EncryptionConfiguration
 resources:
@@ -60,13 +61,13 @@ resources:
 EOF
 
 if [[ -n "$OLD_KEY_NAME" ]]; then
-    cat <<EOF | sudo tee -a $ENCRYPTION_CONFIG_PATH > /dev/null
+    cat <<EOF | sudo tee -a $ENCRYPTION_CONFIG_PATH >/dev/null
             - name: ${OLD_KEY_NAME}
               secret: ${OLD_KEY_SECRET}
 EOF
 fi
 
-cat <<EOF | sudo tee -a $ENCRYPTION_CONFIG_PATH > /dev/null
+cat <<EOF | sudo tee -a $ENCRYPTION_CONFIG_PATH >/dev/null
       - identity: {}
 EOF
 
@@ -80,11 +81,11 @@ sudo microk8s start
 if [[ -n "$OLD_KEY_NAME" ]]; then
     # This should re-encrypt existing secrets with the new key
     echo "Re-encrypting all Kubernetes secrets with new key..."
-    kubectl get secrets --all-namespaces -o json | kubectl replace -f -
+    microk8s kubectl get secrets --all-namespaces -o json | kubectl replace -f -
 
     # Remove old key from encryption config
     echo "Removing old encryption key: ${OLD_KEY_NAME}"
-    cat <<EOF | sudo tee $ENCRYPTION_CONFIG_PATH > /dev/null
+    cat <<EOF | sudo tee $ENCRYPTION_CONFIG_PATH >/dev/null
     apiVersion: apiserver.config.k8s.io/v1
     kind: EncryptionConfiguration
     resources:

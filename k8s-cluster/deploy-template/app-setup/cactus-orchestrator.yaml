@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: test-orchestration
+  name: cactus-orchestrator
   labels:
-    app: test-orchestration
+    app: cactus-orchestrator
 spec:
   serviceAccountName: pod-creator
   containers:
@@ -31,10 +31,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: test-orchestration-service
+  name: cactus-orchestrator-service
 spec:
   selector:
-    app: test-orchestration
+    app: cactus-orchestrator
   ports:
     - protocol: TCP
       port: 80

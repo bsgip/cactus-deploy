@@ -1,0 +1,54 @@
+name: Build and Push Images for Release
+
+on:
+  push:
+    tags:
+      - "release-*"
+
+env:
+  ACR_NAME: cactusimageregistry.azurecr.io
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_NAME }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Extract tag
+        id: extract_tag
+        run: echo "IMAGE_TAG=${GITHUB_REF##*/}" >> "$GITHUB_ENV"
+
+      - name: cactus-orchestrator
+        run: |
+          docker build -t ${ACR_NAME}/cactus-orchestrator:${IMAGE_TAG} ./docker/cactus-orchestrator
+          docker push ${ACR_NAME}/cactus-orchestrator:${IMAGE_TAG}
+
+      - name: cactus-runner
+        run: |
+          docker build -t ${ACR_NAME}/cactus-runner:${IMAGE_TAG} ./docker/cactus-runner
+          docker push ${ACR_NAME}/cactus-runner:${IMAGE_TAG}
+
+      - name: cactus-ui
+        run: |
+          docker build -t ${ACR_NAME}/cactus-ui:${IMAGE_TAG} ./docker/cactus-ui
+          docker push ${ACR_NAME}/cactus-ui:${IMAGE_TAG}
+
+      - name: envoy
+        run: |
+          docker build -t ${ACR_NAME}/envoy:${IMAGE_TAG} ./docker/envoy
+          docker push ${ACR_NAME}/envoy:${IMAGE_TAG}
+
+      - name: envoy-db
+        run: |
+          docker build -t ${ACR_NAME}/envoy-db:${IMAGE_TAG} ./docker/envoy-db
+          docker push ${ACR_NAME}/envoy-db:${IMAGE_TAG}
