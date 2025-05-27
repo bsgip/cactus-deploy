@@ -38,6 +38,11 @@ jobs:
           docker build -t ${ACR_NAME}/cactus-runner:${IMAGE_TAG} ./docker/cactus-runner
           docker push ${ACR_NAME}/cactus-runner:${IMAGE_TAG}
 
+      - name: cactus-teststack-init
+        run: |
+          docker build -t ${ACR_NAME}/cactus-teststack-init:${IMAGE_TAG} ./docker/cactus-teststack-init
+          docker push ${ACR_NAME}/cactus-teststack-init:${IMAGE_TAG}
+
       - name: cactus-ui
         run: |
           docker build -t ${ACR_NAME}/cactus-ui:${IMAGE_TAG} ./docker/cactus-ui
@@ -45,10 +50,10 @@ jobs:
 
       - name: envoy
         run: |
-          docker build -t ${ACR_NAME}/envoy:${IMAGE_TAG} ./docker/envoy
-          docker push ${ACR_NAME}/envoy:${IMAGE_TAG}
+          docker build -t ${ACR_NAME}/cactus-envoy:${IMAGE_TAG} ./docker/envoy
+          docker push ${ACR_NAME}/cactus-envoy:${IMAGE_TAG}
 
       - name: envoy-db
         run: |
-          docker build -t ${ACR_NAME}/envoy-db:${IMAGE_TAG} ./docker/envoy-db
-          docker push ${ACR_NAME}/envoy-db:${IMAGE_TAG}
+          docker build -t ${ACR_NAME}/cactus-envoy-db:${IMAGE_TAG} ./docker/envoy-db
+          docker push ${ACR_NAME}/cactus-envoy-db:${IMAGE_TAG}
