@@ -29,6 +29,7 @@ cactus-deploy/
 │   └── app-setup/           # Application-specific resources
 ├── README.md
 └── VERSIONS.md
+```
 
 ## Getting Started
 Refer to [k8s-cluster/README.md](./k8s-cluster/README.md) for detailed steps on setting up the cluster, preparing manifests and deploying services.
@@ -42,7 +43,7 @@ Key phases include:
 **Prerequisites**
 - Ubuntu 24.04 nodes
 - MicroK8s on all nodes
-- envsubst utility on head node 
+- envsubst utility on head node
 - Admin access on all nodes
 
 ## Security Notes
