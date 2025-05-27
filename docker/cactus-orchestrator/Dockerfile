@@ -4,7 +4,7 @@ FROM python:3.12-slim AS build
 RUN apt update && apt install --no-install-recommends -y git && rm -rf /var/lib/apt/lists/*
 
 # Install deps
-RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-orchestrator.git
+RUN pip install --no-cache-dir uvicorn git+https://git@github.com/bsgip/cactus-orchestrator.git
 
 # RUN stage
 FROM python:3.12-slim
