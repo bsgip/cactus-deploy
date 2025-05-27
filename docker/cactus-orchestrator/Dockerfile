@@ -3,6 +3,9 @@ FROM python:3.12-slim AS build
 
 RUN apt update && apt install --no-install-recommends -y git openssh-client && rm -rf /var/lib/apt/lists/*
 
+# Setup the git config to use https
+RUN git config --global url."https://git@github.com/".insteadOf "ssh://git@github.com/"
+
 # Install deps
 RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-orchestrator.git
 
