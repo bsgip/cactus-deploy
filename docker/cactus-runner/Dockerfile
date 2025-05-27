@@ -1,10 +1,10 @@
 # BUILD stage
 FROM python:3.12-slim AS build
 
-RUN apt-get update; apt-get install -y git
+RUN apt-get update; apt-get install -y git openssh-client
 
 # Install app / dependencies
-RUN pip install --no-cache-dir "git+https://git@github.com/bsgip/cactus-runner.git" gunicorn
+RUN pip install --no-cache-dir "git+ssh://git@github.com/bsgip/cactus-runner.git" gunicorn
 
 # RUN stage
 FROM  python:3.12-slim

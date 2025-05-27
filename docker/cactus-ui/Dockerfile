@@ -1,12 +1,12 @@
 # BUILD stage
 FROM python:3.12-slim AS build
 
-RUN apt update && apt install --no-install-recommends -y git && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install --no-install-recommends -y git openssh-client && rm -rf /var/lib/apt/lists/*
 
 # Install deps
-RUN pip install --no-cache-dir uvicorn git+https://git@github.com/bsgip/cactus-ui.git && pip uninstall -y cactus-ui
+RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-ui.git && pip uninstall -y cactus-ui
 RUN mkdir /app
-RUN pip install --no-cache-dir --no-deps --target /app/ git+https://git@github.com/bsgip/cactus-ui.git
+RUN pip install --no-cache-dir --no-deps --target /app/ git+ssh://git@github.com/bsgip/cactus-ui.git
 
 
 # RUN stage
