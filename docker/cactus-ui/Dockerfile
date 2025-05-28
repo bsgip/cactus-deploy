@@ -1,8 +1,6 @@
-ARG CACTUS_UI_VERSION
-
-
 # BUILD stage
 FROM python:3.12-slim AS build
+ARG CACTUS_UI_VERSION
 
 RUN apt update && apt install --no-install-recommends -y git openssh-client && rm -rf /var/lib/apt/lists/*
 

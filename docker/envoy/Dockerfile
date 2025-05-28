@@ -1,6 +1,5 @@
-ARG ENVOY_VERSION
-
 FROM python:3.11-slim-bookworm
+ARG ENVOY_VERSION
 
 WORKDIR /app
 
