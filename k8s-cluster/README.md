@@ -30,11 +30,11 @@ NOTE: For more information regarding the environment variables, refer to the ass
 ```
 # images
 CACTUS_ENVOY_APP_IMAGE='<registry>/<image-name>:<tag>'
-CACTUS_ENVOY_DB_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_TESTSTACK_INIT_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_RUNNER_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_ORCHESTRATOR_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_UI_IMAGE='<registry>/<image-name>:<tag>'
+CACTUS_ENVOY_DB_IMAGE=postgres:16
 
 # cactus-orchestrator (https://github/bsgip/cactus-orchestrator)
 TEST_EXECUTION_FQDN='<subdomain>.<domain>.<tld>'

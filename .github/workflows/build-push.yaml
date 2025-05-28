@@ -28,32 +28,32 @@ jobs:
         id: extract_tag
         run: echo "IMAGE_TAG=${GITHUB_REF##*/release-}" >> "$GITHUB_ENV"
 
+      - name: Extract Version
+        id: extract_versions_lock
+        run: cat docker/versions.lock >> "$GITHUB_ENV"
+
       - name: cactus-orchestrator
         run: |
-          docker build -t ${ACR_NAME}/cactus-orchestrator:${IMAGE_TAG} ./docker/cactus-orchestrator
+          docker build -t ${ACR_NAME}/cactus-orchestrator:${IMAGE_TAG} --build-arg CACTUS_ORCHESTRATOR_VERSION="${CACTUS_ORCHESTRATOR_VERSION}" ./docker/cactus-orchestrator
           docker push ${ACR_NAME}/cactus-orchestrator:${IMAGE_TAG}
 
       - name: cactus-runner
         run: |
-          docker build -t ${ACR_NAME}/cactus-runner:${IMAGE_TAG} ./docker/cactus-runner
+          docker build -t ${ACR_NAME}/cactus-runner:${IMAGE_TAG} --build-arg CACTUS_RUNNER_VERSION="${CACTUS_RUNNER_VERSION}" ./docker/cactus-runner
           docker push ${ACR_NAME}/cactus-runner:${IMAGE_TAG}
 
       - name: cactus-teststack-init
         run: |
-          docker build -t ${ACR_NAME}/cactus-teststack-init:${IMAGE_TAG} ./docker/cactus-teststack-init
+          docker build -t ${ACR_NAME}/cactus-teststack-init:${IMAGE_TAG} --build-arg ENVOY_VERSION="${ENVOY_VERSION}" ./docker/cactus-teststack-init
           docker push ${ACR_NAME}/cactus-teststack-init:${IMAGE_TAG}
 
       - name: cactus-ui
         run: |
-          docker build -t ${ACR_NAME}/cactus-ui:${IMAGE_TAG} ./docker/cactus-ui
+          docker build -t ${ACR_NAME}/cactus-ui:${IMAGE_TAG} --build-arg CACTUS_UI_VERSION="${CACTUS_UI_VERSION}" ./docker/cactus-ui
           docker push ${ACR_NAME}/cactus-ui:${IMAGE_TAG}
 
       - name: envoy
         run: |
-          docker build -t ${ACR_NAME}/cactus-envoy:${IMAGE_TAG} ./docker/envoy
+          docker build -t ${ACR_NAME}/cactus-envoy:${IMAGE_TAG} --build-arg ENVOY_VERSION="${ENVOY_VERSION}" ./docker/envoy
           docker push ${ACR_NAME}/cactus-envoy:${IMAGE_TAG}
 
-      - name: envoy-db
-        run: |
-          docker build -t ${ACR_NAME}/cactus-envoy-db:${IMAGE_TAG} ./docker/envoy-db
-          docker push ${ACR_NAME}/cactus-envoy-db:${IMAGE_TAG}
