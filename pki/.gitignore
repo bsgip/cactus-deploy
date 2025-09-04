@@ -1,0 +1,13 @@
+# Ignore every sub directory - but leave top level files
+*
+!*/
+!*
+*/**
+
+# Ignore testing files
+*.pem*
+*.key*
+*.crt*
+*.cert*
+*.csr*
+*.cnf*
