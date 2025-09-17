@@ -5,16 +5,22 @@ NOTE: All commands should be run on the control plan (head) node unless specifie
 ## (1) Cluster creation
 Getting started (Ubuntu 24.04):
 0. Setup and harden using standard scripts.
-1. Install microk8s on all nodes: https://microk8s.io/docs/getting-started
-2. Make a k8suser on the control node, add them to `sudo` group.
-3. QoL, so you don't have to keep typing `microk8s kubectl`, add the following to `/home/k8suser/.bashrc`:
+1. Make a k8suser ONLY on the control node, add that to `sudo` group.
+2. QoL, so you don't have to keep typing `microk8s kubectl`, add the following to `/home/k8suser/.bashrc`:
 ```
 alias k8s="microk8s kubectl"
 source <(microk8s kubectl completion bash)
 complete -o default -F __start_kubectl k8s
 ```
+3. Install microk8s on all nodes: https://microk8s.io/docs/getting-started
+3.2. For the control node follow the instruction to step 4 using the k8suser  
+3.3. For the worker nodes only install the software but dont set up the user (you will be using root instead, as these workes do not need to be touched again)
+
 4. On the designated control plane node, run `microk8s add-node` and follow instructions returned to add other nodes (as workers) to the cluster. No further steps are needed on the worker nodes. You can check nodes are connected by running `microk8s kubectl get nodes` on the control plane node.
-5. Enable the following addons:
+4.1 step 4 needs to be repeated per worker node to generate a new token\
+4.2 on the control node check that the workers have been added `k8s get nodes`
+    
+5. Enable the following addons on the control node:
 ```
 microk8s enable cert-manager
 microk8s enable ingress dns
