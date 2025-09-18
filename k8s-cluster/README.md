@@ -27,8 +27,8 @@ microk8s enable ingress dns
 
 ## (2) Preparing k8s manifests
 microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifests. We instead use a custom script which relies on `envsubst` to substitute variables.
-
-1. Make a working directory `mkdir /home/k8suser/k8s-cluster/`.
+0. check out the cactus deploy repository to the k8suser home
+1. move to the folder k8s-cluster/`in the repo.
 
 2. Define a .env file with the following vars:
 NOTE: For more information regarding the environment variables, refer to the associated repository.
