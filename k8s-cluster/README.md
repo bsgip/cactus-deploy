@@ -30,21 +30,28 @@ microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifest
 0. check out the cactus deploy repository to the k8suser home
 1. move to the folder k8s-cluster/`in the repo.
 
-2. Define a .env file with the following vars:
+2. Define a cactus.env file with the following vars:
+
 NOTE: For more information regarding the environment variables, refer to the associated repository.
 ```
-# general
-LETS_ENCRYPT_EMAIL='<sysadmin@example.com>'
+# images - v1.2
+CACTUS_ENVOY_APP_IMAGE_V12='<registry>/<image-name>:<tag>'
+CACTUS_TESTSTACK_INIT_IMAGE_V12='<registry>/<image-name>:<tag>'
+CACTUS_RUNNER_IMAGE_V12='<registry>/<image-name>:<tag>'
+CACTUS_ENVOY_DB_IMAGE_V12="postgres:15"
 
-# images
-CACTUS_ENVOY_APP_IMAGE='<registry>/<image-name>:<tag>'
-CACTUS_TESTSTACK_INIT_IMAGE='<registry>/<image-name>:<tag>'
-CACTUS_RUNNER_IMAGE='<registry>/<image-name>:<tag>'
+# images - v1.3-beta-storage
+CACTUS_ENVOY_APP_IMAGE_V13_BETA_STORAGE='<registry>/<image-name>:<tag>'
+CACTUS_TESTSTACK_INIT_IMAGE_V13_BETA_STORAGE='<registry>/<image-name>:<tag>'
+CACTUS_RUNNER_IMAGE_V13_BETA_STORAGE='<registry>/<image-name>:<tag>'
+CACTUS_ENVOY_DB_IMAGE_V13_BETA_STORAGE="postgres:15"
+
+# images - common
 CACTUS_ORCHESTRATOR_IMAGE='<registry>/<image-name>:<tag>'
 CACTUS_UI_IMAGE='<registry>/<image-name>:<tag>'
-CACTUS_ENVOY_DB_IMAGE=postgres:15
 
-# NOTE - changing from postgres:15 will require updating the postgresql-client version used in various Dockerfiles
+# cluster - common
+LETS_ENCRYPT_EMAIL="peter.shevchenko@anu.edu.au"
 
 # cactus-orchestrator (https://github/bsgip/cactus-orchestrator)
 TEST_EXECUTION_FQDN='<subdomain>.<domain>.<tld>'
@@ -62,7 +69,7 @@ CACTUS_PLATFORM_SUPPORT_EMAIL='<support@email>'
 
 2. The `templates-to-manifests.sh` script copies the `deploy-template` directory and applies environment variables to the Kubernetes manifest templates. Usage:
 ```
-./templates-to-manfests.sh ./deploy-template /home/k8suser/k8s-cluster/deploy/ /home/k8suser/k8s-cluster/.env
+./templates-to-manfests.sh deploy-template/ /home/k8suser/active-deploy/ cactus.env
 ```
 
 ## Cluster configuration (./cluster-setup)
