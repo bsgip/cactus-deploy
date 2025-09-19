@@ -72,8 +72,8 @@ CACTUS_PLATFORM_SUPPORT_EMAIL='<support@email>'
 ./templates-to-manfests.sh deploy-template/ /home/k8suser/active-deploy/ cactus.env
 ```
 
-## Cluster configuration (./cluster-setup)
-1. Apply at-rest-encryption to the microk8s secret store. Run the `setup-encryption.sh` script.
+## Cluster configuration (./cluster-setup) 
+1. Apply at-rest-encryption to the microk8s secret store. Run the `setup-encryption.sh` script. -this step may be subject to change in the future
 
 2. We make three namespaces (1) for test execution resources (2) for test orchestration resources (3) for the template resources we clone:
 ```
@@ -82,6 +82,7 @@ CACTUS_PLATFORM_SUPPORT_EMAIL='<support@email>'
 3. microk8s kubectl create namespace teststack-templates
 ```
 3. Create a privileged service account in the `test-orchestration` namespace. This account has permissions to create and destroy resources and is used by the harness-orchestrator/test-orchestration pods.
+   3.1 in the active-dploy folder =, go to the cluster setup to execute this script.
 ```
 microk8s kubectl apply -f test-orchestration-service-account.yaml -n test-orchestration
 ```
