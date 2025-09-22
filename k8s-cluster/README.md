@@ -24,6 +24,10 @@ microk8s enable cert-manager
 microk8s enable ingress dns
 ```
 6. Enable the IP advitiser addon: `microk8s enable metallb`. It will ask for an IP range for the load balancer - since we only need one, assign a free static IP that you want to expose for your FQDN. It will request a range, just provide a single value range e.g. 192.168.1.1-192.168.1.1
+    1. If this is set up in the DER-Lab its from high importance to engage with the admin team and find an IP address that can be used for the load balancer
+    2. The IP from the Load balancer needs to be linked to a virtual IP on the firewall
+    3. NAT rules need to be set in between the Virtual IP and the Load balancer (This can be copied from an exisiting system)
+
 
 ## (2) Preparing k8s manifests
 microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifests. We instead use a custom script which relies on `envsubst` to substitute variables.
