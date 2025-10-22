@@ -5,6 +5,7 @@ NOTE: All commands should be run on the control plan (head) node unless specifie
 ## (1) Cluster creation
 Getting started (Ubuntu 24.04):
 0. Setup and harden using standard scripts.
+0.1 If replicating a system use snap info microk8s to find the channel/version you want to install
 1. Make a k8suser ONLY on the control node, add that to `sudo` group.
 2. QoL, so you don't have to keep typing `microk8s kubectl`, add the following to `/home/k8suser/.bashrc`:
 ```
@@ -13,17 +14,19 @@ source <(microk8s kubectl completion bash)
 complete -o default -F __start_kubectl k8s
 ```
 3. Install microk8s on all nodes: https://microk8s.io/docs/getting-started.
-    1. For the control node follow the instruction to step 4 using the k8suser  
-    2. For the worker nodes only install the software but dont set up the user (you will be using root instead, as these workes do not need to be touched again)
-4. On the designated control plane node, run `microk8s add-node` and follow instructions returned to add other nodes (as workers) to the cluster. No further steps are needed on the worker nodes. You can check nodes are connected by running `microk8s kubectl get nodes` on the control plane node.
-    1. step 4 needs to be repeated per worker node to generate a new token\
+    1. For the control node follow the instruction to step 4 using the k8suser, ignore aliases as we are using our own  
+    2. For the worker nodes only install the software but dont set up the user (you will be using root instead, as these workers do not need to be touched again)
+4. On the designated control plane node, run `microk8s add-node` and follow instructions returned to add other nodes (as workers) to the cluster. No further steps are needed on the worker nodes.
+5. Check nodes are connected by running `microk8s kubectl get nodes` on the control plane node.
+    1. step 4 needs to be repeated per worker node to generate a new token
     2. on the control node check that the workers have been added `k8s get nodes`   
-5. Enable the following addons on the control node:
+6. Enable the following addons on the control node, be ready to do the acme challange for your URL:
 ```
 microk8s enable cert-manager
 microk8s enable ingress dns
+
 ```
-6. Enable the IP advitiser addon: `microk8s enable metallb`. It will ask for an IP range for the load balancer - since we only need one, assign a free static IP that you want to expose for your FQDN. It will request a range, just provide a single value range e.g. 192.168.1.1-192.168.1.1
+7. Enable the IP advertiser addon: `microk8s enable metallb`. It will ask for an IP range for the load balancer - since we only need one, assign a free static IP that you want to expose for your FQDN. It will request a range, just provide a single value range e.g. 192.168.1.1-192.168.1.1
     1. If this is set up in the DER-Lab its from high importance to engage with the admin team and find an IP address that can be used for the load balancer
     2. The IP from the Load balancer needs to be linked to a virtual IP on the firewall
     3. NAT rules need to be set in between the Virtual IP and the Load balancer (This can be copied from an exisiting system)
@@ -31,6 +34,7 @@ microk8s enable ingress dns
 
 ## (2) Preparing k8s manifests
 microk8s/kubernetes has no out-of-the-box utility for configurable yaml manifests. We instead use a custom script which relies on `envsubst` to substitute variables.
+
 0. check out the cactus deploy repository to the k8suser home
 1. move to the folder k8s-cluster/`in the repo.
 
@@ -150,3 +154,17 @@ microk8s kubectl apply -f cactus-orchestrator.yaml -n test-orchestration
 ```
 microk8s kubectl apply -f envoy-teststack.yaml -n teststack-templates
 ```
+
+## Set up the database
+
+The database setup is needed for the app. 
+
+1. Install `snap install microk8s --classic --channel=XXX` on the node and join it to the cluster
+2. Set up /etc/postgresql/16/main/pg_hba.conf it needs to include all nodes to access the database
+```
+host    cactusorchestrator     cactususer       192.168.xx.xx/31        scram-sha-256
+```
+3. restart the service `service postgresql restart`
+4. log in as postgres user and add the user to the database `psql -h localhost -d cactusorchestrator -U cactususer -W`
+5. create a password for the user (DB-Secret from above) `ALTER USER cactususer WITH PASSWORD 'YOUR_PASSWORD';
+6. Set up the database using the almembic schema
