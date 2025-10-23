@@ -79,7 +79,7 @@ CACTUS_PLATFORM_SUPPORT_EMAIL='<support@email>'
 ./templates-to-manfests.sh deploy-template/ /home/k8suser/active-deploy/ cactus.env
 ```
 
-## Cluster configuration (./cluster-setup) 
+## (3) Cluster configuration (./cluster-setup) 
 1. Apply at-rest-encryption to the microk8s secret store. Run the `setup-encryption.sh` script. -this step may be subject to change in the future
 
 2. We make three namespaces (1) for test execution resources (2) for test orchestration resources (3) for the template resources we clone:
@@ -125,7 +125,7 @@ k8s create secret generic -n test-execution tls-ca-certificate --from-file=ca.cr
 k8s create secret tls tls-ca-cert-key-pair -n test-execution --cert <path-to-ca.crt> --key <path-to-unencrypted-ca.key>
 ```
 
-## K8s resource setup (./app-setup)
+## (4) K8s resource setup (./app-setup)
 1. Create Kubernetes Secrets for the applications. NOTE: Refer to the specific applications repository for details regarding the variable being stored in the secret store.
 ```
 # cactus-orchestrator (https://github.com/bsgip/cactus-orchestrator)
@@ -154,7 +154,7 @@ microk8s kubectl apply -f cactus-orchestrator.yaml -n test-orchestration
 microk8s kubectl apply -f envoy-teststack.yaml -n teststack-templates
 ```
 
-## Set up the database
+## (5) Set up the database
 
 The database setup is needed for the app. 
 
