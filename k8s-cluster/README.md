@@ -166,5 +166,6 @@ host    cactusorchestrator     cactususer       192.168.xx.xx/31        scram-sh
 ```
 3. restart the service `service postgresql restart`
 4. log in as postgres user and add the user to the database `psql -h localhost -d cactusorchestrator -U cactususer -W`
-5. create a password for the user (DB-Secret from above) `ALTER USER cactususer WITH PASSWORD 'YOUR_PASSWORD';
+5. create a password for the user and DB-Secret `ALTER USER cactususer WITH PASSWORD 'YOUR_PASSWORD';
 6. Set up the database using the almembic schema
+7. on the manager node add the DB secret like this `k8s create secret generic orchestrator-db-secret --from-literal=ORCHESTRATOR_DATABASE_URL='postgres+asyncpg://cactususer:YOUR_PASSWORD@192.168.XX.XXX:5432/cactusorchestrator' -n test-orchestration`
