@@ -152,7 +152,8 @@ spec:
               value: "11111"
             - name: LOG_CONFIG
               value: logconf.server.json
-
+            - name: NOTIFICATION_DISABLE_TLS_VERIFY
+              value: "True"
           volumeMounts:
             - name: shared
               mountPath: /shared
