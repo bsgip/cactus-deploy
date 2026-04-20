@@ -29,6 +29,8 @@ spec:
               key: ORCHESTRATOR_DATABASE_URL
         - name: TEST_EXECUTION_COMMS_TIMEOUT_SECONDS
           value: "120"
+        - name: IGNORED_CSIP_AUS_VERSIONS
+          value: ${IGNORED_CSIP_AUS_VERSIONS}
 ---
 apiVersion: v1
 kind: Service
