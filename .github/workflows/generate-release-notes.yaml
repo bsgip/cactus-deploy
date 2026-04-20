@@ -45,7 +45,7 @@ jobs:
           while IFS='=' read -r dep ver; do
             [ -z "$dep" ] && continue
             old_ver=$(grep "^$dep=" versions/previous | cut -d= -f2)
-            
+
             ORG="bsgip"
             REPO=""
             NAME=""
@@ -53,18 +53,32 @@ jobs:
             if [ "$dep" == "CACTUS_ORCHESTRATOR_VERSION" ]; then
               REPO="cactus-orchestrator"
               NAME="Orchestrator"
-            elif [ "$dep" == "CACTUS_RUNNER_VERSION" ]; then
-              REPO="cactus-runner"
-              NAME="Test Runner"
             elif [ "$dep" == "CACTUS_UI_VERSION" ]; then
               REPO="cactus-ui"
               NAME="Web UI"
-            elif [ "$dep" == "ENVOY_VERSION" ]; then
-              REPO="envoy"
-              NAME="Utility Server"
             elif [ "$dep" == "CACTUS_CLIENT_NOTIFICATIONS_VERSION" ]; then
+              REPO="cactus-client-notifications"
+              NAME="Client Notifications"
+            elif [ "$dep" == "V12_CACTUS_RUNNER_VERSION" ]; then
+              REPO="cactus-runner"
+              NAME="Test Runner (v1.2)"
+            elif [ "$dep" == "V12_ENVOY_VERSION" ]; then
               REPO="envoy"
-              NAME="Utility Server"
+              NAME="Utility Server (v1.2)"
+            elif [ "$dep" == "V13_STORAGE_BETA_CACTUS_RUNNER_VERSION" ]; then
+              REPO="cactus-runner"
+              NAME="Test Runner (v1.3-storage-beta)"
+              ORG="synergy-au"
+            elif [ "$dep" == "V13_STORAGE_BETA_ENVOY_VERSION" ]; then
+              REPO="envoy"
+              NAME="Utility Server (v1.3-storage-beta)"
+              ORG="synergy-au"
+            elif [ "$dep" == "V13_CACTUS_RUNNER_VERSION" ]; then
+              REPO="cactus-runner"
+              NAME="Test Runner (v1.3)"
+            elif [ "$dep" == "V13_ENVOY_VERSION" ]; then
+              REPO="envoy"
+              NAME="Utility Server (v1.3)"
             else
               echo "" >> versions/changes
               echo "> [!CAUTION]" >> versions/changes
@@ -72,17 +86,15 @@ jobs:
               continue
             fi
 
-
-            echo "# $NAME" >> versions/changes
-            echo ""
+            echo "## $NAME" >> versions/changes
             if [ "$old_ver" == "$ver" ]; then
               echo "No change from \`$ver\`" >> versions/changes
             else
               echo "\`$old_ver\` changed to \`$ver\`" >> versions/changes
               echo "" >> versions/changes
               gh release view $ver --repo "${ORG}/${REPO}" --json body -q .body >> versions/changes
-              # echo "" >> versions/changes
             fi
+            echo "" >> versions/changes
           done < versions/current
 
           echo "Generated Release Notes:"

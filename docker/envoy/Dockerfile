@@ -1,11 +1,12 @@
 FROM python:3.12-slim-bookworm
 ARG ENVOY_VERSION
+ARG GITHUB_ORG=bsgip
 
 WORKDIR /app
 
 # Deps
 RUN apt update && apt install --no-install-recommends -y netcat-traditional git && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir git+https://git@github.com/bsgip/envoy.git@${ENVOY_VERSION}#egg=envoy python-json-logger uvicorn
+RUN pip install --no-cache-dir git+https://git@github.com/${GITHUB_ORG}/envoy.git@${ENVOY_VERSION}#egg=envoy python-json-logger uvicorn
 
 # logging config
 COPY logconf.admin.json ./logconf.admin.json

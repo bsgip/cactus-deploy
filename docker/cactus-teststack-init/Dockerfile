@@ -3,12 +3,13 @@
 FROM python:3.11-slim-bookworm AS make-migration
 
 ARG ENVOY_VERSION
+ARG GITHUB_ORG=bsgip
 
 WORKDIR /app
 
 # Deps
 RUN apt update && apt install --no-install-recommends -y git
-RUN pip install --no-cache-dir -e git+https://git@github.com/bsgip/envoy.git@${ENVOY_VERSION}#egg=envoy
+RUN pip install --no-cache-dir -e git+https://git@github.com/${GITHUB_ORG}/envoy.git@${ENVOY_VERSION}#egg=envoy
 RUN pip install --no-cache-dir alembic
 
 WORKDIR /app/src/envoy/src/envoy/server

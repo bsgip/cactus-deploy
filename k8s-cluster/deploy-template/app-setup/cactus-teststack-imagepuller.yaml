@@ -24,6 +24,7 @@ spec:
         - name: common-ui
           image: ${CACTUS_UI_IMAGE}
           command: ["sh", "-c", "'true'"]
+          
         - name: v12-runner
           image: ${CACTUS_RUNNER_IMAGE_V12}
           command: ["sh", "-c", "'true'"]
@@ -36,6 +37,20 @@ spec:
         - name: v12-envoy
           image: ${CACTUS_ENVOY_APP_IMAGE_V12}
           command: ["sh", "-c", "'true'"]
+
+        - name: v13-runner
+          image: ${CACTUS_RUNNER_IMAGE_V13}
+          command: ["sh", "-c", "'true'"]
+        - name: v13-db
+          image: ${CACTUS_ENVOY_DB_IMAGE_V13}
+          command: ["sh", "-c", "'true'"]
+        - name: v13-init
+          image: ${CACTUS_TESTSTACK_INIT_IMAGE_V13}
+          command: ["sh", "-c", "'true'"]
+        - name: v13-envoy
+          image: ${CACTUS_ENVOY_APP_IMAGE_V13}
+          command: ["sh", "-c", "'true'"]
+
         - name: v13-beta-storage-runner
           image: ${CACTUS_RUNNER_IMAGE_V13_BETA_STORAGE}
           command: ["sh", "-c", "'true'"]

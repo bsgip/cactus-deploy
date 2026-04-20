@@ -30,37 +30,97 @@ jobs:
               "IMAGE_NAME": "cactus-orchestrator",
               "VERSION_NAME": "CACTUS_ORCHESTRATOR_VERSION",
               "VERSION_VALUE": "${CACTUS_ORCHESTRATOR_VERSION}",
+              "VERSION_SUFFIX": "",
+              "GITHUB_ORG": "bsgip",
               "BUILD_DIR": "./docker/cactus-orchestrator"
-            },
-            {
-              "IMAGE_NAME": "cactus-runner",
-              "VERSION_NAME": "CACTUS_RUNNER_VERSION",
-              "VERSION_VALUE": "${CACTUS_RUNNER_VERSION}",
-              "BUILD_DIR": "./docker/cactus-runner"
-            },
-            {
-              "IMAGE_NAME": "cactus-teststack-init",
-              "VERSION_NAME": "ENVOY_VERSION",
-              "VERSION_VALUE": "${ENVOY_VERSION}",
-              "BUILD_DIR": "./docker/cactus-teststack-init"
             },
             {
               "IMAGE_NAME": "cactus-ui",
               "VERSION_NAME": "CACTUS_UI_VERSION",
               "VERSION_VALUE": "${CACTUS_UI_VERSION}",
+              "VERSION_SUFFIX": "",
+              "GITHUB_ORG": "bsgip",
               "BUILD_DIR": "./docker/cactus-ui"
-            },
-            {
-              "IMAGE_NAME": "cactus-envoy",
-              "VERSION_NAME": "ENVOY_VERSION",
-              "VERSION_VALUE": "${ENVOY_VERSION}",
-              "BUILD_DIR": "./docker/envoy"
             },
             {
               "IMAGE_NAME": "cactus-client-notifications",
               "VERSION_NAME": "CACTUS_CLIENT_NOTIFICATIONS_VERSION",
               "VERSION_VALUE": "${CACTUS_CLIENT_NOTIFICATIONS_VERSION}",
+              "VERSION_SUFFIX": "",
+              "GITHUB_ORG": "bsgip",
               "BUILD_DIR": "./docker/cactus-client-notifications"
+            },
+            {
+              "IMAGE_NAME": "cactus-runner",
+              "VERSION_NAME": "CACTUS_RUNNER_VERSION",
+              "VERSION_VALUE": "${V12_CACTUS_RUNNER_VERSION}",
+              "VERSION_SUFFIX": "-v12",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/cactus-runner"
+            },
+            {
+              "IMAGE_NAME": "cactus-runner",
+              "VERSION_NAME": "CACTUS_RUNNER_VERSION",
+              "VERSION_VALUE": "${V13_STORAGE_BETA_CACTUS_RUNNER_VERSION}",
+              "VERSION_SUFFIX": "-v13-storage-beta",
+              "GITHUB_ORG": "synergy-au",
+              "BUILD_DIR": "./docker/cactus-runner"
+            },
+            {
+              "IMAGE_NAME": "cactus-runner",
+              "VERSION_NAME": "CACTUS_RUNNER_VERSION",
+              "VERSION_VALUE": "${V13_CACTUS_RUNNER_VERSION}",
+              "VERSION_SUFFIX": "-v13",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/cactus-runner"
+            },
+            {
+              "IMAGE_NAME": "cactus-envoy",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V12_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v12",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/envoy"
+            },
+            {
+              "IMAGE_NAME": "cactus-envoy",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V13_STORAGE_BETA_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v13-storage-beta",
+              "GITHUB_ORG": "synergy-au",
+              "BUILD_DIR": "./docker/envoy"
+            },
+            {
+              "IMAGE_NAME": "cactus-envoy",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V13_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v13",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/envoy"
+            },
+            {
+              "IMAGE_NAME": "cactus-teststack-init",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V12_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v12",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/cactus-teststack-init"
+            },
+            {
+              "IMAGE_NAME": "cactus-teststack-init",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V13_STORAGE_BETA_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v13-storage-beta",
+              "GITHUB_ORG": "synergy-au",
+              "BUILD_DIR": "./docker/cactus-teststack-init"
+            },
+            {
+              "IMAGE_NAME": "cactus-teststack-init",
+              "VERSION_NAME": "ENVOY_VERSION",
+              "VERSION_VALUE": "${V13_ENVOY_VERSION}",
+              "VERSION_SUFFIX": "-v13",
+              "GITHUB_ORG": "bsgip",
+              "BUILD_DIR": "./docker/cactus-teststack-init"
             }
            ]
           }
@@ -91,8 +151,9 @@ jobs:
 
       - name: build-push
         run: |
-          docker build -t ${ACR_NAME}/${{ matrix.IMAGE_NAME }}:${IMAGE_TAG} --build-arg ${{ matrix.VERSION_NAME }}="${{ matrix.VERSION_VALUE }}" "${{ matrix.BUILD_DIR }}"
-          docker push ${ACR_NAME}/${{ matrix.IMAGE_NAME }}:${IMAGE_TAG}
-
-      
-
+          docker build \
+            -t ${ACR_NAME}/${{ matrix.IMAGE_NAME }}:${IMAGE_TAG}${{ matrix.VERSION_SUFFIX }} \
+            --build-arg ${{ matrix.VERSION_NAME }}="${{ matrix.VERSION_VALUE }}" \
+            --build-arg GITHUB_ORG="${{ matrix.GITHUB_ORG }}" \
+            "${{ matrix.BUILD_DIR }}"
+          docker push ${ACR_NAME}/${{ matrix.IMAGE_NAME }}:${IMAGE_TAG}${{ matrix.VERSION_SUFFIX }}

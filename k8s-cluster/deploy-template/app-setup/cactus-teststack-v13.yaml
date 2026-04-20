@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-svc-v1-3
+spec:
+  selector:
+    app: envoy-v1-3
+  ports:
+    - name: runner
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: envoy-set-v1-3
+spec:
+  selector:
+      matchLabels:
+        app: "envoy-v1-3" # has to match .spec.template.metadata.labels
+  serviceName: "envoy-svc-v1-3"
+  replicas: 1
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app: envoy-v1-3
+    spec:
+      volumes:
+        - name: shared
+          emptyDir: {}
+      initContainers:
+      - name: cactus-runner
+        restartPolicy: Always # i.e. side-car
+        image: ${CACTUS_RUNNER_IMAGE_V13}
+        ports:
+          - containerPort: 8080
+        env:
+          - name: APP_PORT
+            value: "8080"
+          - name: SERVER_URL
+            value: "http://localhost:8000"
+          - name: DATABASE_URL
+            value: "postgresql+psycopg://test_user:test_pwd@localhost/test_db"
+          - name: ENVOY_ADMIN_BASICAUTH_USERNAME
+            value: admin
+          - name: ENVOY_ADMIN_BASICAUTH_PASSWORD
+            value: password
+          # Optional: cap on-disk request/response pairs retained during a test (default 5000).
+          # Also controls max request_history entries serialized into the ZIP.
+          # - name: MAX_REQUEST_PAIRS
+          #   value: "5000"
+          # Optional: max bytes copied from each log file into the ZIP archive, tail of file (default 32 MB).
+          # - name: MAX_LOG_FILE_BYTES
+          #   value: "32000000"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 36 # 3 minutes of failure
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
+
+      - name: envoy-db
+        image: ${CACTUS_ENVOY_DB_IMAGE_V13} # Vanilla postgres docker image e.g. postgres:15
+        restartPolicy: Always # i.e. side-car
+        ports:
+          - containerPort: 5432
+        env:
+          - name: POSTGRES_USER
+            value: "test_user"
+          - name: POSTGRES_PASSWORD
+            value: "test_pwd"
+          - name: POSTGRES_DB
+            value: "test_db"
+        readinessProbe:
+          exec:
+            command:
+              - psql
+              - -U
+              - test_user
+              - -d
+              - test_db
+              - -c
+              - SELECT 1 FROM site LIMIT 1;
+
+          initialDelaySeconds: 0
+          periodSeconds: 1
+          failureThreshold: 120 # 2 minutes of failures
+
+      - name: cactus-teststack-init
+        image: ${CACTUS_TESTSTACK_INIT_IMAGE_V13}
+        env:
+          - name: ENVOY_DATABASE_URL
+            value: "postgresql://test_user:test_pwd@localhost/test_db"
+        volumeMounts:
+          - name: shared
+            mountPath: /shared
+
+      containers:
+        - name: rabbit-mq
+          image: rabbitmq:3-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "guest"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "guest"
+
+        - name: taskiq-worker
+          image: ${CACTUS_ENVOY_APP_IMAGE_V13}
+          command: ["taskiq", "worker", "--no-configure-logging", "envoy.notification.main:broker", "envoy.notification.task.check", "envoy.notification.task.transmit"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://test_user:test_pwd@localhost:5432/test_db"
+            - name: CERT_HEADER
+              value: "ssl-client-cert"
+            - name: ENABLE_NOTIFICATIONS
+              value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
+            - name: ALLOW_DEVICE_REGISTRATION
+              value: "True"
+            - name: LOG_CONFIG
+              value: logconf.notification.json
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+
+        - name: envoy
+          image: ${CACTUS_ENVOY_APP_IMAGE_V13}
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /status/version?check_data=false
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 36 # 3 minutes of failure
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://test_user:test_pwd@localhost/test_db"
+            - name: CERT_HEADER
+              value: "ssl-client-cert"
+            - name: ENABLE_NOTIFICATIONS
+              value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
+            - name: ALLOW_DEVICE_REGISTRATION
+              value: "True"
+            - name: STATIC_REGISTRATION_PIN
+              value: "11111"
+            - name: LOG_CONFIG
+              value: logconf.server.json
+            - name: NOTIFICATION_DISABLE_TLS_VERIFY
+              value: "True"
+
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+
+        - name: envoy-admin
+          image: ${CACTUS_ENVOY_APP_IMAGE_V13}
+          ports:
+            - containerPort: 8001
+          env:
+            - name: APP_MODULE
+              value: "envoy.admin.main:app"
+            - name: PORT
+              value: "8001"
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://test_user:test_pwd@localhost/test_db"
+            - name: CERT_HEADER
+              value: "ssl-client-cert"
+            - name: ENABLE_NOTIFICATIONS
+              value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
+            - name: ALLOW_DEVICE_REGISTRATION
+              value: "True"
+            - name: ADMIN_USERNAME
+              value: "admin"
+            - name: ADMIN_PASSWORD
+              value: "password"
+            - name: LOG_CONFIG
+              value: logconf.admin.json
+          readinessProbe:
+            httpGet:
+              path: /status/health?check_data=false
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 36 # 3 minutes of failure
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
