@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir uvicorn git+ssh://git@github.com/bsgip/cactus-orc
 # RUN stage
 FROM python:3.12-slim
 
+RUN apt update && apt install --no-install-recommends -y postgresql && rm -rf /var/lib/apt/lists/*
+
 # entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod o+x /entrypoint.sh
