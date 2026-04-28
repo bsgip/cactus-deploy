@@ -54,5 +54,3 @@ Key phases include:
 Versioning of the platform components is tracked centrally. Each tag in this repository (e.g., release-1, release-2) corresponds to a stable combination of component versions.
 
 Versions of the components used in any given build are defined in [versions.lock](./docker/versions.lock).
-
-See [VERSIONS.md](./VERSIONS.md) for the full version history of component releases.
