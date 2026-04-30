@@ -50,8 +50,6 @@ spec:
           value: ${BANNER_MESSAGE}
         - name: LOGIN_BANNER_MESSAGE
           value: ${LOGIN_BANNER_MESSAGE}
-        - name: CACTUS_PLAYLISTS
-          value: ${CACTUS_PLAYLISTS}
 
 
 ---
