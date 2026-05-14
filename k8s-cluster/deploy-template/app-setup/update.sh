@@ -13,9 +13,11 @@ echo "Applying latest changes"
 set -e
 microk8s kubectl -n test-orchestration delete -f cactus-orchestrator.yaml && microk8s kubectl -n test-orchestration apply -f cactus-orchestrator.yaml
 microk8s kubectl -n test-orchestration delete -f cactus-ui.yaml && microk8s kubectl -n test-orchestration apply -f cactus-ui.yaml
+microk8s kubectl -n test-orchestration apply -f cactus-client-notifications.yaml
 microk8s kubectl -n teststack-templates apply -f cactus-teststack-v12.yaml
 microk8s kubectl -n teststack-templates apply -f cactus-teststack-v13.yaml
 microk8s kubectl -n teststack-templates apply -f cactus-teststack-v13-beta-storage.yaml
+
 
 echo "Update complete"
 exit 0
