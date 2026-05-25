@@ -25,7 +25,7 @@ RUN git clone --depth 1 --branch ${ENVOY_VERSION} \
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable && \
-    uv pip install uvicorn python-json-logger
+    uv pip install "uvicorn==0.48.0" "python-json-logger==4.1.0"
 
 # RUN stage
 FROM python:3.12-slim-bookworm

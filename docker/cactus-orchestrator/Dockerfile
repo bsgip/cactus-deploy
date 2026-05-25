@@ -25,7 +25,7 @@ RUN git clone --depth 1 --branch ${CACTUS_ORCHESTRATOR_VERSION} \
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable && \
-    uv pip install uvicorn
+    uv pip install "uvicorn==0.48.0"
 
 # RUN stage
 FROM python:3.12-slim-bookworm
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y postgresql && r
 
 # entrypoint
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod o+x /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 RUN useradd -ms /bin/bash appuser
 

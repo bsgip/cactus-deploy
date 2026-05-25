@@ -25,7 +25,7 @@ RUN git clone --depth 1 --branch ${CACTUS_UI_VERSION} \
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable && \
-    uv pip install uvicorn
+    uv pip install "uvicorn==0.48.0"
 
 # Copy static overrides into the installed package directory
 COPY static /tmp/static

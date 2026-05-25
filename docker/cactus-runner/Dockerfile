@@ -25,7 +25,7 @@ RUN git clone --depth 1 --branch ${CACTUS_RUNNER_VERSION} \
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable && \
-    uv pip install gunicorn
+    uv pip install "gunicorn==26.0.0"
 
 # RUN stage
 FROM python:3.12-slim-bookworm
