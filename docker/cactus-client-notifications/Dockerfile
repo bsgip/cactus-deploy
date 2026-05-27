@@ -24,7 +24,7 @@ RUN git clone --depth 1 --branch ${CACTUS_CLIENT_NOTIFICATIONS_VERSION} \
      git checkout ${CACTUS_CLIENT_NOTIFICATIONS_VERSION})
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-editable --extra server && \
+    uv sync --locked --no-editable && \
     uv pip install "gunicorn==26.0.0"
 
 # RUN stage
