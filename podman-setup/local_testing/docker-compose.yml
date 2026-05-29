@@ -28,9 +28,9 @@ services:
     image: docker.io/library/busybox:latest
     command: sleep infinity
     ports:
-      - "18000:8000"   # envoy
+      - "18000:8000"   # envoy (direct access for debugging only — device traffic goes via runner on 18080)
       - "18001:8001"   # envoy-admin
-      - "18080:8080"   # runner
+      - "18080:8080"   # runner (device traffic proxied through here to envoy)
 
   postgres:
     image: ${CACTUS_ENVOY_DB_IMAGE:-docker.io/library/postgres:15}

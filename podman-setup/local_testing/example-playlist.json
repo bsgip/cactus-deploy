@@ -1,0 +1,52 @@
+[
+  {
+    "run_id": "local-smoke-001",
+    "test_definition": {
+      "test_procedure_id": "ALL-01",
+      "yaml_definition": "Description: Discovery with Out-of-Band Registration\nCategory: Registration\nClasses:\n  - A\n  - DR-A\n\nTargetVersions:\n  - v1.2\n  - v1.3-beta/storage\n  - v1.3\n\nPreconditions:\n  immediate_start: true # There will be no \"init\" phase - all interactions will be immediately logged against the test\n  init_actions:\n    - type: set-comms-rate\n      parameters:\n        dcap_poll_seconds: 60\n        edev_list_poll_seconds: 60\n        fsa_list_poll_seconds: 60\n        der_list_poll_seconds: 60\n        derp_list_poll_seconds: 60\n        mup_post_seconds: 60\n  \n  actions:\n    - type: register-end-device\n      parameters:\n        registration_pin: 11111 # With checksum is 111115\n        aggregator_lfdi: 3E4F45AB31EDFE5B67E343E5E4562E3100000000 # Trailing PEN digits set to 0\n        aggregator_sfdi: 16726121139\n        \nCriteria:\n  checks:\n    - type: all-steps-complete\n      parameters: {}\n      \nSteps:\n  # (b, c, d)\n  GET-DCAP:\n    instructions:\n      - \"An EndDevice has already been registered (out of band) with PIN 111115\"\n      - \"If you are connecting using an Aggregator client/certificate the out of band registered EndDevice will have the following:\"\n      - \"LFDI: 3E4F45AB31EDFE5B67E343E5E4562E31XXXXXXXX (The X values will match your client PEN)\"\n      - \"SFDI: 16726121139\"\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /dcap\n    actions:\n      - type: enable-steps\n        parameters:\n          steps:\n            - GET-EDEV-LIST\n            - GET-TM\n            - GET-DER\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-DCAP\n\n  # (e, f, g)\n  GET-EDEV-LIST:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /edev\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-EDEV-LIST\n\n  # (h, i, j)\n  GET-TM:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /tm\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-TM\n\n  # (k, l, m)\n  GET-DER:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /edev/1/der\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-DER\n\n"
+    },
+    "run_group": {
+      "run_group_id": "local-group-001",
+      "name": "Local Smoke Test",
+      "csip_aus_version": "v1.2",
+      "test_certificates": {
+        "aggregator": "-----BEGIN CERTIFICATE-----\nMIIBjjCCATOgAwIBAgIUKC6ihTtILP2d75S922aE71DeARowCgYIKoZIzj0EAwIw\nHDEaMBgGA1UEAwwRY2FjdHVzLWxvY2FsLXRlc3QwHhcNMjYwNTI5MDEzODU2WhcN\nMzYwNTI2MDEzODU2WjAcMRowGAYDVQQDDBFjYWN0dXMtbG9jYWwtdGVzdDBZMBMG\nByqGSM49AgEGCCqGSM49AwEHA0IABEBdIXx3WUuxb4W5BrGur9TczcX6Uiom1UPS\nzXgAZZxvG4PZtc1NYIn6pBeHA0okskunqVFbRU5MG5/u51zXJMGjUzBRMB0GA1Ud\nDgQWBBSij/zUNXck8kOttcpDJD/SlefziTAfBgNVHSMEGDAWgBSij/zUNXck8kOt\ntcpDJD/SlefziTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQCP\nbmKAAV/n4TI7Fzb3APmjX0fqDFEwky9Sw1VGftNHAwIhAI+CRk7W0WGHbizjkTlK\nwl76GjsfFIxru3FCDqdQZWEi\n-----END CERTIFICATE-----\n",
+        "device": null
+      }
+    },
+    "test_config": {
+      "subscription_domain": null,
+      "is_static_url": false,
+      "pen": 0
+    },
+    "test_user": {
+      "user_id": "local-user",
+      "name": "Local Tester"
+    }
+  },
+  {
+    "run_id": "local-smoke-002",
+    "test_definition": {
+      "test_procedure_id": "ALL-03",
+      "yaml_definition": "Description: Connection Point registration\nCategory: Registration\nClasses:\n  - C\n\nTargetVersions:\n  - v1.2\n  - v1.3-beta/storage\n  - v1.3\n\nCriteria:\n  checks:\n    - type: all-steps-complete\n      parameters: {}\n    - type: end-device-contents\n      parameters:\n        has_connection_point_id: true\n        check_lfdi: true\n\nPreconditions:\n  immediate_start: true # There will be no \"init\" phase - all interactions will be immediately logged against the test\n  init_actions:\n    - type: set-comms-rate\n      parameters:\n        dcap_poll_seconds: 60\n        edev_list_poll_seconds: 60\n        fsa_list_poll_seconds: 60\n        der_list_poll_seconds: 60 \n        derp_list_poll_seconds: 60\n        mup_post_seconds: 60\n\nSteps:\n  GET-DCAP:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /dcap\n    actions:\n      - type: enable-steps\n        parameters:\n          steps:\n            - GET-EDEV\n            - GET-TM\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-DCAP\n\n  GET-EDEV:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /edev\n    actions:\n      - type: enable-steps\n        parameters:\n          steps:\n            - POST-EDEV\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-EDEV\n\n  GET-TM:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /tm\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-TM\n\n  POST-EDEV:\n    event:\n      type: POST-request-received\n      parameters:\n        endpoint: /edev\n    actions:\n      - type: enable-steps\n        parameters:\n          steps:\n            - GET-DER\n            - PUT-CP\n      - type: remove-steps\n        parameters:\n          steps:\n            - POST-EDEV\n\n  GET-DER:\n    event:\n      type: GET-request-received\n      parameters:\n        endpoint: /edev/1/der\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - GET-DER\n\n  PUT-CP:\n    event:\n      type: PUT-request-received\n      parameters:\n        endpoint: /edev/1/cp\n    actions:\n      - type: remove-steps\n        parameters:\n          steps:\n            - PUT-CP\n"
+    },
+    "run_group": {
+      "run_group_id": "local-group-001",
+      "name": "Local Smoke Test",
+      "csip_aus_version": "v1.2",
+      "test_certificates": {
+        "aggregator": "-----BEGIN CERTIFICATE-----\nMIIBjjCCATOgAwIBAgIUKC6ihTtILP2d75S922aE71DeARowCgYIKoZIzj0EAwIw\nHDEaMBgGA1UEAwwRY2FjdHVzLWxvY2FsLXRlc3QwHhcNMjYwNTI5MDEzODU2WhcN\nMzYwNTI2MDEzODU2WjAcMRowGAYDVQQDDBFjYWN0dXMtbG9jYWwtdGVzdDBZMBMG\nByqGSM49AgEGCCqGSM49AwEHA0IABEBdIXx3WUuxb4W5BrGur9TczcX6Uiom1UPS\nzXgAZZxvG4PZtc1NYIn6pBeHA0okskunqVFbRU5MG5/u51zXJMGjUzBRMB0GA1Ud\nDgQWBBSij/zUNXck8kOttcpDJD/SlefziTAfBgNVHSMEGDAWgBSij/zUNXck8kOt\ntcpDJD/SlefziTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQCP\nbmKAAV/n4TI7Fzb3APmjX0fqDFEwky9Sw1VGftNHAwIhAI+CRk7W0WGHbizjkTlK\nwl76GjsfFIxru3FCDqdQZWEi\n-----END CERTIFICATE-----\n",
+        "device": null
+      }
+    },
+    "test_config": {
+      "subscription_domain": null,
+      "is_static_url": false,
+      "pen": 0
+    },
+    "test_user": {
+      "user_id": "local-user",
+      "name": "Local Tester"
+    }
+  }
+]
