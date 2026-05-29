@@ -4,9 +4,14 @@
 # This means every container reaches its siblings on localhost, which is identical to the
 # live environment — the env vars here are the exact values PodmanTeststackManager passes.
 #
-# All services depend only on infra (not on each other) to work around a podman-compose /
-# Podman 4.x bug with transitive --requires chains.  restart: on-failure handles timing:
-# teststack-init retries until postgres accepts connections; envoy/runner retry on startup.
+# Startup order mirrors the k8s pod:
+#   postgres (healthy) → teststack-init (schema) → db-ready (healthy) → app containers
+#   rabbitmq (healthy) ────────────────────────────────────────────────→ taskiq-worker / envoy
+#
+# db-ready is a sentinel service that polls `SELECT 1 FROM site LIMIT 1` — the same probe
+# used by the k8s envoy-db readiness check — and only becomes healthy once migrations are done.
+# This avoids the Podman 4.x --requires bug (requires container to be *running*; teststack-init
+# exits after completion) while still guaranteeing schema-before-app ordering.
 #
 # Usage:
 #   cp sample.env .env          # fill in image tags
@@ -64,16 +69,36 @@ services:
       timeout: 10s
       retries: 12
 
-  # One-shot: writes the envoy schema and exits.  Retries until postgres accepts connections.
+  # One-shot: writes the envoy schema and exits.  Waits for postgres to be healthy first.
   teststack-init:
     image: ${CACTUS_TESTSTACK_INIT_IMAGE}
     network_mode: "service:infra"
     depends_on:
       infra:
         condition: service_started
-    restart: on-failure
+      postgres:
+        condition: service_healthy
     environment:
       ENVOY_DATABASE_URL: postgresql://envoy:envoy@localhost/envoy
+
+  # Sentinel: polls SELECT 1 FROM site until teststack-init migrations are applied, then stays
+  # running so app containers can gate on service_healthy.  Mirrors the k8s envoy-db readiness
+  # probe that blocks main containers until the schema exists.
+  db-ready:
+    image: ${CACTUS_ENVOY_DB_IMAGE:-docker.io/library/postgres:15}
+    network_mode: "service:infra"
+    depends_on:
+      infra:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "until psql postgresql://envoy:envoy@localhost/envoy -c 'SELECT 1 FROM site LIMIT 1' > /dev/null 2>&1; do sleep 1; done && sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "psql postgresql://envoy:envoy@localhost/envoy -c 'SELECT 1 FROM site LIMIT 1'"]
+      interval: 2s
+      timeout: 5s
+      retries: 120
 
   envoy:
     image: ${CACTUS_ENVOY_APP_IMAGE}
@@ -81,6 +106,10 @@ services:
     depends_on:
       infra:
         condition: service_started
+      db-ready:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
     environment:
       DATABASE_URL: postgresql+asyncpg://envoy:envoy@localhost/envoy
@@ -97,6 +126,8 @@ services:
       interval: 5s
       start_period: 30s
       retries: 36
+    volumes:
+      - shared:/shared
 
   envoy-admin:
     image: ${CACTUS_ENVOY_APP_IMAGE}
@@ -104,6 +135,10 @@ services:
     depends_on:
       infra:
         condition: service_started
+      db-ready:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
     environment:
       APP_MODULE: envoy.admin.main:app
@@ -116,6 +151,13 @@ services:
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: password
       LOG_CONFIG: logconf.admin.json
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/status/health?check_data=false\")'"]
+      interval: 5s
+      start_period: 30s
+      retries: 36
+    volumes:
+      - shared:/shared
 
   taskiq-worker:
     image: ${CACTUS_ENVOY_APP_IMAGE}
@@ -123,6 +165,10 @@ services:
     depends_on:
       infra:
         condition: service_started
+      db-ready:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     restart: on-failure
     command:
       - taskiq
@@ -139,6 +185,8 @@ services:
       RABBIT_MQ_BROKER_URL: amqp://guest:guest@localhost:5672
       ALLOW_DEVICE_REGISTRATION: "True"
       LOG_CONFIG: logconf.notification.json
+    volumes:
+      - shared:/shared
 
   runner:
     image: ${CACTUS_RUNNER_IMAGE}
@@ -146,6 +194,8 @@ services:
     depends_on:
       infra:
         condition: service_started
+      db-ready:
+        condition: service_healthy
     restart: on-failure
     environment:
       APP_PORT: "8080"
@@ -154,6 +204,8 @@ services:
       ENVOY_ADMIN_BASICAUTH_USERNAME: admin
       ENVOY_ADMIN_BASICAUTH_PASSWORD: password
       HEADER_MEDIA_PARAM_VALUE: ${CSIP_AUS_VERSION:-1.3}
+    volumes:
+      - shared:/shared
     healthcheck:
       test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/health\")'"]
       interval: 5s
@@ -163,3 +215,4 @@ services:
 volumes:
   pg-data:
   rabbitmq-data:
+  shared:
