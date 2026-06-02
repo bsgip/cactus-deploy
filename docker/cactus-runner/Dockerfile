@@ -1,6 +1,6 @@
 # UV Docker best practices: https://docs.astral.sh/uv/guides/integration/docker/
 # BUILD stage
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.13-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /bin/uv
 
 ARG CACTUS_RUNNER_VERSION
@@ -28,11 +28,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "gunicorn==26.0.0"
 
 # RUN stage
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # This postgresql-client version shouldn't be "behind" the postgres version in the k8s pod
 # eg: If the pod is running postgres:15, don't install postgresql-client-14
-RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 RUN mkdir -p config/logging && mkdir /shared
@@ -44,8 +44,9 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV APP_HOST='0.0.0.0'
-ENV APP_PORT='8080'
+ENV HOST='0.0.0.0'
+ENV PORT='8080'
 
-# run app
-CMD ["sh", "-c", "exec gunicorn cactus_runner.app.main:app --bind ${APP_HOST}:${APP_PORT} --worker-class aiohttp.GunicornWebWorker --timeout 60"]
+# run app - we can start immediately as the app health check will give us definite information about whether the underlying
+# services have started (or not)
+CMD ["sh", "-c", "exec gunicorn cactus_runner.app.main:app --bind ${HOST}:${PORT} --worker-class aiohttp.GunicornWebWorker --timeout 60"]

@@ -1,5 +1,25 @@
 #!/bin/bash
 
+# Wait for the DB migration sentinel to be created
+if [ -n "$MIGRATION_SENTINEL" ]; then
+    MAX_MIGRATION_ATTEMPTS=120
+    MIGRATION_ATTEMPT=0
+    echo "Waiting for database migrations via $MIGRATION_SENTINEL"
+    while [ ! -f "$MIGRATION_SENTINEL" ]; do
+        ls -la $MIGRATION_SENTINEL
+        sleep 1
+        MIGRATION_ATTEMPT=$((MIGRATION_ATTEMPT + 1))
+        if [ $MIGRATION_ATTEMPT -ge $MAX_MIGRATION_ATTEMPTS ]; then
+            echo "Timed out waiting for database migrations!" >&2
+            exit 1
+        fi
+    done
+
+    echo "$MIGRATION_SENTINEL exists - database should be migrated."
+else
+    echo "MIGRATION_SENTINEL has not been specified. Skipping wait on migration."
+fi
+
 if [ -n "${RABBIT_MQ_BROKER_URL}" ]; then
     echo "Notifications are enabled. RABBIT_MQ_BROKER_URL has been set."
 
@@ -20,7 +40,7 @@ if [ -n "${RABBIT_MQ_BROKER_URL}" ]; then
     # Wait for RabbitMQ to be ready
     until nc -z $RABBIT_MQ_HOST $RABBIT_MQ_PORT; do
       echo "Waiting for RabbitMQ @ '${RABBIT_MQ_HOST}:${RABBIT_MQ_PORT}' to become available..."
-      sleep 2
+      sleep 1
     done
     echo "RabbitMQ @ '${RABBIT_MQ_HOST}:${RABBIT_MQ_PORT}' is available, starting envoy..."
 else
