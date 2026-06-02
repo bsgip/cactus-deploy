@@ -90,11 +90,15 @@ All endpoints at `http://localhost:18080`.
 
 ---
 
-## Example: ALL-01 + ALL-03 playlist
+## Example: ALL-01 + ALL-05 playlist
 
 `example-playlist.json` contains a two-test playlist using `test-client.cert.pem`.
+Both tests have only `all-steps-complete` criteria and no wait steps — the full playlist
+completes in under a minute.
 
 Add the `ssl-client-cert` header (URL-encoded cert) to all device simulation requests.
+
+> **Playlist compatibility note:** not all test pairs work together. Tests that have immediate_start: true are unlikely to work in playlists. In CACTUS production these are forbidden as part of playlists and can only be run as individual tests. ALL-05 works here because it has no content-check criteria. Tests like ALL-03 with strict `end-device-contents` criteria should be run standalone with a fresh stack.
 
 ### Initialise
 
@@ -104,7 +108,8 @@ curl -s -X POST http://localhost:18080/initialise \
   -d @example-playlist.json
 ```
 
-ALL-01 uses `immediate_start: true` — starts automatically, no `/start` needed.
+Both tests use `immediate_start: true` — they start automatically when initialised or
+advanced to. No `/start` call needed.
 
 ### ALL-01 device requests
 
@@ -115,19 +120,13 @@ GET http://localhost:18080/tm
 GET http://localhost:18080/edev/1/der
 ```
 
-### Finalise ALL-01 (auto-advances to ALL-03)
+### Finalise ALL-01 (auto-advances to ALL-05)
 
 ```bash
 curl -s -X POST http://localhost:18080/finalize -o all01.zip
 ```
 
-### Start ALL-03
-
-```bash
-curl -s -X POST http://localhost:18080/start
-```
-
-### ALL-03 device requests
+### ALL-05 device requests
 
 ```
 GET  http://localhost:18080/dcap
@@ -143,25 +142,14 @@ POST http://localhost:18080/edev
          <changedTime>1700000000</changedTime>
        </EndDevice>
 
+GET  http://localhost:18080/edev/1/fsa
 GET  http://localhost:18080/edev/1/der
-
-PUT  http://localhost:18080/edev/1/cp
-     Content-Type: application/sep+xml
-     Body:
-       <csipaus:ConnectionPoint
-           xmlns="urn:ieee:std:2030.5:ns"
-           xmlns:csipaus="https://csipaus.org/ns"
-           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-           xsi:type="" href="">
-         <csipaus:id></csipaus:id>
-         <csipaus:connectionPointId>1234567890</csipaus:connectionPointId>
-       </csipaus:ConnectionPoint>
 ```
 
-### Finalise ALL-03
+### Finalise ALL-05
 
 ```bash
-curl -s -X POST http://localhost:18080/finalize -o all03.zip
+curl -s -X POST http://localhost:18080/finalize -o all05.zip
 ```
 
 Each ZIP contains `test_procedure_summary.json`, runner log, and envoy logs.
