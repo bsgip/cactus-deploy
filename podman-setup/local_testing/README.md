@@ -56,7 +56,7 @@ image); in a real deployment they are pre-pulled by `setup.sh`.
 #    in the cactus-deploy checkout. First run pulls the teststack images (slow); later runs reuse them.
 #    Set CSIP_AUS_VERSION=1.2 for the envoy-1.x (-v12) stack; default is 1.3 (-v13).
 cd /path/to/cactus-orchestrator
-uv run python /path/to/cactus-deploy/podman-setup/local_testing/spawn_local.py up
+sudo -E .venv/bin/python ../cactus-deploy/podman-setup/local_testing/spawn_local.py up
 #    (override images/socket/version via sample.env — see that file)
 
 # 2. The pod publishes no host port (matches prod). Forward the runner to localhost:18080 so the

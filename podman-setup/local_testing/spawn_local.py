@@ -21,8 +21,15 @@ Usage:
 import asyncio
 import dataclasses
 import json
+import logging
 import os
 import sys
+
+# Surface the orchestrator's spawn timing locally: INFO for the per-spawn total, DEBUG for the
+# per-container create timeline. podman-py's HTTP chatter is noisy at DEBUG, so keep it at WARNING.
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s: %(message)s")
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("podman").setLevel(logging.INFO)
 
 # NOTE: these tags must be a build that implements the current entrypoint contract the orchestrator
 # relies on — runner binds ${HOST}:${PORT}; teststack-init writes $MIGRATION_SENTINEL; envoy waits on
