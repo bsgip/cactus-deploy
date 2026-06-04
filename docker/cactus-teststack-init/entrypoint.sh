@@ -9,7 +9,7 @@ fi
 
 echo "Waiting for db to be ready..."
 until psql ${ENVOY_DATABASE_URL} -c "SELECT 1;" >/dev/null 2>&1; do
-  sleep 1
+  sleep 0.1
 done
 
 set -e
