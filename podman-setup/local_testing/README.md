@@ -4,37 +4,73 @@
 > In production the orchestrator manages teststack pods directly via the Podman API.
 > None of this is used in a real deployment.
 
-Runs the full teststack locally via `podman-compose` so you can drive the runner API
-directly without the orchestrator, simulating DER device requests from an HTTP client
-(Postman, curl, etc.).
+Spins up a **real teststack pod** locally via `spawn_local.py`, which calls the orchestrator's
+`PodmanTeststackManager` directly — so you exercise the exact wiring used in production (one pod on
+`cactus-net`, the runner as the sole ingress, internals on `localhost`) with no auth, database, or UI to
+stand up, and nothing to drift out of sync. You then drive the runner API by hand to simulate DER device
+requests (curl, Postman, etc.).
+
+The pod has the same shape the orchestrator builds: `runner` (the only `0.0.0.0` ingress), `envoy` and
+`envoy-admin` on `127.0.0.1`, plus `postgres`, `rabbitmq`, and `taskiq-worker`. Like production, the pod
+publishes **no host port** — the Start section forwards the runner to `localhost:18080` so the examples
+below work unchanged.
 
 ---
 
 ## Prerequisites
 
+Fresh Ubuntu 24.04 box. Run everything **as root** — `spawn_local.py` talks to the rootful Podman
+socket, which is root-owned.
+
 ```bash
-apt install podman
-pip install podman-compose
+# 1. Podman + the rootful API socket spawn_local.py connects to.
+apt install -y podman
+systemctl enable --now podman.socket
+ls -l /run/podman/podman.sock                 # must exist before continuing
+
+# 2. The shared network the pod joins.
+podman network create cactus-net
+
+# 3. The orchestrator package — spawn_local.py imports cactus_orchestrator and drives its real
+#    PodmanTeststackManager, so it must run from that repo's venv. Use the podman branch:
+git clone https://github.com/bsgip/cactus-orchestrator.git
+cd cactus-orchestrator
+git checkout podman-pod-consolidation
+uv sync                                       # creates .venv with cactus_orchestrator + podman deps
 ```
 
-Images are pulled from `cactusimageregistry.azurecr.io` (public — no login needed).
+> **Podman version:** v4.x (the Ubuntu 24.04 default) and v5.x both work — `manager.py` carries a
+> v4/v5 healthcheck shim. Podman v3 or older will not.
+
+Teststack images (`cactusimageregistry.azurecr.io`, public — no login) are **pulled automatically by
+`spawn_local.py`** on first `up`. The orchestrator itself never pulls (it fails fast on a missing
+image); in a real deployment they are pre-pulled by `setup.sh`.
 
 ---
 
 ## Start
 
 ```bash
-cp sample.env .env        # edit image tags if needed
-podman-compose up -d
-```
+# 1. Spawn the pod (the same wiring the orchestrator builds in production).
+#    Run from inside the cactus-orchestrator clone so `uv run` uses its venv; point at this script
+#    in the cactus-deploy checkout. First run pulls the teststack images (slow); later runs reuse them.
+#    Set CSIP_AUS_VERSION=1.2 for the envoy-1.x (-v12) stack; default is 1.3 (-v13).
+cd /path/to/cactus-orchestrator
+uv run python /path/to/cactus-deploy/podman-setup/local_testing/spawn_local.py up
+#    (override images/socket/version via sample.env — see that file)
 
-Wait for healthy (~60 s):
+# 2. The pod publishes no host port (matches prod). Forward the runner to localhost:18080 so the
+#    examples below work. The runner binds 0.0.0.0, so a socat container on cactus-net can reach it:
+podman run -d --name envoy-svc-local-fwd --network cactus-net -p 18080:18080 \
+    docker.io/alpine/socat TCP-LISTEN:18080,fork,reuseaddr TCP:envoy-svc-local:8080
 
-```bash
-podman ps --format "table {{.Names}}\t{{.Status}}"
+# 3. Wait for the runner to answer (~25–30 s for the stack to boot):
 curl http://localhost:18080/health
-curl "http://localhost:18000/status/version?check_data=false"
 ```
+
+> Envoy is bound to `127.0.0.1` inside the pod (isolation), so it is **not** reachable via the cactus-net
+> forwarder. To poke envoy directly for debugging, exec into the pod, e.g.
+> `podman exec envoy-svc-local-envoy curl -s "http://localhost:8000/status/version?check_data=false"`.
 
 ---
 
@@ -77,7 +113,7 @@ python3 -c "import urllib.parse; print(urllib.parse.quote(open('test-client.cert
 
 ## Runner API
 
-All endpoints at `http://localhost:18080`.
+All endpoints at `http://localhost:18080` (the forwarded runner).
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -159,5 +195,6 @@ Each ZIP contains `test_procedure_summary.json`, runner log, and envoy logs.
 ## Teardown
 
 ```bash
-podman-compose down -v
+podman rm -f envoy-svc-local-fwd                 # the port-forward helper
+uv run python spawn_local.py down                # removes the pod + its shared volume
 ```

@@ -38,6 +38,11 @@ podman network exists cactus-net && echo "    Already exists, skipping." || podm
 # 3. Traefik                                                                   #
 # --------------------------------------------------------------------------- #
 echo "==> Starting Traefik..."
+
+
+# Routes are discovered from container labels on cactus-net. Each teststack's runner carries the
+# PathPrefix router plus a per-stack StripPrefix middleware, so teststack routing is created
+# dynamically as the orchestrator spawns runners — no static Traefik config needed here.
 podman rm -f traefik 2>/dev/null || true
 podman run -d \
     --name traefik \

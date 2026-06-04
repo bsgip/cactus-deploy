@@ -12,22 +12,28 @@ DER clients (TLS 1.2 / AES-128-CCM8)
         │
         ├──► cactus-ui :5000            ← Flask UI (proxied directly from nginx)
         │
-        └──► Traefik :80               ← dynamic routing for teststack envoy instances
-                │                         (path-prefix rules auto-registered via Podman labels)
-                └──► envoy-svc-{id}    ← per-test Podman pod on cactus-net
-                        ├── envoy
-                        ├── cactus-runner
-                        ├── postgres
-                        ├── taskiq-worker
-                        └── pubsub (redis)
+        └──► Traefik :80               ← dynamic routing for teststack runners
+                │                         (PathPrefix + StripPrefix rules auto-registered via Podman labels)
+                └──► envoy-svc-{id}     ← teststack POD on cactus-net (the pod name is its DNS alias).
+                        │                  Traefik strips /envoy-svc-{id} and routes to the runner.
+                        │  one pod = one shared network namespace; members talk over localhost:
+                        ├── runner          ← sole ingress: the only member bound to 0.0.0.0:8080
+                        ├── envoy           ← 127.0.0.1:8000 (the runner proxies device traffic here)
+                        ├── envoy-admin     ← 127.0.0.1:8001
+                        ├── postgres        ← 127.0.0.1 (listen_addresses=localhost)
+                        ├── taskiq-worker   ← notification fan-out (no inbound listener)
+                        └── rabbitmq        ← in-pod broker
 
-    cactus-orchestrator ─────────────► Podman socket  ← creates/destroys teststack pods
-    (container on cactus-net)
+    cactus-orchestrator ─────────────► Podman socket  ← creates/destroys teststack pods + containers
+    (container on cactus-net)            reaches each runner for control at http://envoy-svc-{id}:8080
 ```
 
-Teststack pods are created and destroyed at runtime by `cactus-orchestrator` via the Podman API socket.
-No template resources exist on disk — the orchestrator builds each pod from the image map in
-`PODMAN_TESTSTACK_IMAGES`.
+Teststacks are created and destroyed at runtime by `cactus-orchestrator` via the Podman API socket.
+No template resources exist on disk — for each teststack the orchestrator creates a single **pod** on
+`cactus-net` (the pod name doubles as its DNS alias) and runs the containers from the image map in
+`PODMAN_TESTSTACK_IMAGES` inside it. Because all members share the pod's network namespace they reach
+each other over `localhost`; only the runner binds `0.0.0.0`, making it the single ingress, while every
+other service binds `127.0.0.1` and so is unreachable from other teststacks on `cactus-net`.
 
 ---
 
@@ -61,13 +67,20 @@ $EDITOR cactus.env
 
 Key variables to set:
 - `ORCHESTRATOR_DATABASE_URL` — asyncpg connection string for the orchestrator postgres.
-- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags.
-  Example for version 1.3:
+- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The orchestrator
+  expects these keys: `postgres`, `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner`
+  (the taskiq-worker reuses the `envoy` image, so no separate key). Add one entry per supported
+  CSIP-Aus version: **1.2 uses the `-v12` images (envoy 1.x), 1.3 uses the `-v13` images (envoy 2.x)**.
+  The tag prefix is the cactus-deploy release tag (`release-podman` → `podman`):
   ```json
-  {"1.3": {"postgres": "postgres:15", "pubsub": "redis:7",
-           "envoy": "<registry>/cactus-envoy:<tag>",
-           "taskiq-worker": "<registry>/cactus-envoy:<tag>",
-           "runner": "<registry>/cactus-runner:<tag>"}}
+  {"1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+           "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
+           "envoy": "<registry>/cactus-envoy:podman-v12",
+           "runner": "<registry>/cactus-runner:podman-v12"},
+   "1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+           "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
+           "envoy": "<registry>/cactus-envoy:podman-v13",
+           "runner": "<registry>/cactus-runner:podman-v13"}}
   ```
 - `CERT_*_PATH` — host paths to PKI artefacts (generated in step 3).
 - `AUTH0_*` / `APP_SECRET_KEY` — OAuth2 credentials for cactus-ui.
@@ -208,17 +221,24 @@ curl -s http://127.0.0.1:8000/health
 # 3. UI is serving
 curl -skI https://cactus.example.com/ | head -5
 
-# 4. Spawn a minimal test pod and check Traefik picks it up
+# 4. Spawn a minimal teststack-shaped POD and check Traefik picks up the runner's labels.
+#    Mirrors the real wiring: a pod on cactus-net, the ingress container bound to 0.0.0.0 with
+#    PathPrefix + StripPrefix labels (the prefix is stripped before the ingress, which serves at root).
 podman pod create --name envoy-svc-smoke --network cactus-net
-podman run -d --pod envoy-svc-smoke \
-    --label "traefik.enable=true" \
-    --label "traefik.http.routers.envoy-svc-smoke.rule=PathPrefix(\`/envoy-svc-smoke\`)" \
-    --label "traefik.http.routers.envoy-svc-smoke.entrypoints=web" \
-    --label "traefik.http.services.envoy-svc-smoke.loadbalancer.server.port=80" \
-    nginx:alpine
-curl -s http://127.0.0.1:80/envoy-svc-smoke/   # should reach nginx:alpine
-podman pod rm --force envoy-svc-smoke
+podman run -d --name envoy-svc-smoke-runner --pod envoy-svc-smoke \
+    --label traefik.enable=true \
+    --label traefik.docker.network=cactus-net \
+    --label 'traefik.http.routers.envoy-svc-smoke.rule=PathPrefix(`/envoy-svc-smoke`)' \
+    --label traefik.http.routers.envoy-svc-smoke.entrypoints=web \
+    --label traefik.http.routers.envoy-svc-smoke.middlewares=envoy-svc-smoke-strip \
+    --label traefik.http.middlewares.envoy-svc-smoke-strip.stripprefix.prefixes=/envoy-svc-smoke \
+    --label traefik.http.services.envoy-svc-smoke.loadbalancer.server.port=80 \
+    docker.io/library/nginx:alpine
+curl -s http://127.0.0.1:80/envoy-svc-smoke/   # should reach nginx:alpine at root (prefix stripped)
+podman pod rm -f envoy-svc-smoke
 ```
+
+(Or simpler: spawn a real teststack via the UI and assert the route appears.)
 
 ---
 
@@ -235,8 +255,14 @@ podman exec cactus-orchestrator ls -la /run/podman/podman.sock
 # Check Traefik API (dashboard on port 8080 if --api.insecure=true was added to setup)
 podman logs traefik
 
-# Check container labels are present
-podman inspect envoy-svc-<id>-envoy | jq '.[0].Config.Labels'
+# Labels live on the runner (it is the ingress) — confirm they are present
+podman inspect envoy-svc-<id>-runner | jq '.[0].Config.Labels'
+
+# Confirm the pod is attached to cactus-net (the pod name is its DNS alias)
+podman pod inspect envoy-svc-<id> | jq '.InfraConfig.Networks'
+
+# The runner must be the only pod member bound to 0.0.0.0; internals bind 127.0.0.1
+podman exec envoy-svc-<id>-runner sh -c 'ss -ltn 2>/dev/null || netstat -ltn'
 ```
 
 **Certificate errors on test-execution domain:**
