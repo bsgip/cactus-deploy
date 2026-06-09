@@ -39,18 +39,22 @@ other service binds `127.0.0.1` and so is unreachable from other teststacks on `
 
 ## (1) Prerequisites
 
-Ubuntu 24.04.  The setup script handles most of the installation, but verify:
+Ubuntu 24.04.  `setup.sh` installs Podman and Traefik and pre-pulls images, but you must provide:
 
 - Static IP assigned and DNS records created for both `TEST_EXECUTION_FQDN` and `TEST_ORCHESTRATION_FQDN`.
 - External PostgreSQL instance reachable from this host (for the orchestrator database).
 - Container registry credentials available if using a private registry.
+- A custom-compiled, CCM8-capable nginx (see the cipher note below) — `setup.sh` does **not** install or
+  configure nginx; the TLS edge is hand-managed (see §4).
 
-**AES-128-CCM8 cipher requirement:**  IEEE 2030.5 mandates this cipher for DER device connections.
-Standard nginx packages do not include it.  Verify support before proceeding:
+**AES-128-CCM8 cipher requirement:**  IEEE 2030.5 mandates this cipher for DER device connections, and
+standard distro nginx packages do not include it — which is why nginx is custom-compiled against a
+CCM-capable OpenSSL and installed out of band rather than by `setup.sh`.  Verify support on whatever
+nginx build you install:
 
 ```bash
 openssl ciphers | tr ':' '\n' | grep CCM8
-# If empty, install a CCM-capable OpenSSL build and rebuild nginx against it.
+# If empty, that OpenSSL build lacks CCM8 — rebuild nginx against a CCM-capable OpenSSL.
 ```
 
 ---
@@ -132,24 +136,47 @@ chmod 600 /etc/nginx/certs/server.key.pem
 
 ## (4) Infrastructure setup
 
-Run the setup script once on a fresh host.  It installs Podman, creates the `cactus-net` network,
-starts Traefik, installs nginx, and pre-pulls all teststack images.
+Run the setup script once on a fresh host.  It installs Podman, enables the rootful socket, creates the
+`cactus-net` network, starts Traefik, creates `/etc/cactus/pki`, and pre-pulls all teststack images. It
+does **not** install or configure nginx and does **not** issue TLS certificates — the TLS edge is
+hand-managed (see below).
 
 ```bash
 chmod +x scripts/setup.sh
 sudo ./scripts/setup.sh ./cactus.env
 ```
 
-After setup, obtain a Let's Encrypt certificate for the orchestration domain:
+### nginx / TLS edge (hand-managed)
+
+The device-facing vhost requires AES-128-CCM8, which stock distro nginx cannot provide, so nginx is
+**custom-compiled against a CCM-capable OpenSSL and installed out of band** — not by `setup.sh`. After
+setup:
+
+1. Install your custom nginx build and confirm the cipher: `openssl ciphers | grep -c CCM8` (must be ≥1).
+2. Place the device-facing TLS material at `/etc/nginx/certs/`: `server.fullchain.pem`, `server.key.pem`,
+   and `serca.cert.pem` (from §3).
+3. Render the config template into your nginx layout. A from-source build has no Debian
+   `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
+   ```bash
+   envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
+       < nginx/nginx.conf > <your-nginx-conf-path>
+   ```
+4. Issue the orchestration-domain (UI) certificate. The template references
+   `/etc/letsencrypt/live/${TEST_ORCHESTRATION_FQDN}/...`; obtain it however suits the host (e.g.
+   `certbot certonly --webroot` or a DNS-01 challenge — the `--nginx` plugin is not used, as it assumes a
+   distro nginx layout). Adjust the paths in the rendered config if you issue certs elsewhere.
+5. Validate and reload: `nginx -t && systemctl reload nginx` (or your build's equivalent).
+
+### Enable userns for teststack pods
+
+The orchestrator spawns every teststack pod with `userns=auto`, which requires the rootful user (`root`)
+to have a subordinate UID/GID range — without it **every spawn fails**. `setup.sh` does not set this; add
+it once on the host:
 
 ```bash
-sudo certbot --nginx -d cactus.example.com
-```
-
-Then reload nginx:
-
-```bash
-sudo nginx -t && sudo systemctl reload nginx
+grep -q '^root:' /etc/subuid || echo 'root:100000:1048576' | sudo tee -a /etc/subuid
+grep -q '^root:' /etc/subgid || echo 'root:100000:1048576' | sudo tee -a /etc/subgid
+sudo podman system migrate
 ```
 
 ---
