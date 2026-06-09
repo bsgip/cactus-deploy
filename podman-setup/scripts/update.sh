@@ -34,6 +34,22 @@ podman pull "$CACTUS_UI_IMAGE"
 podman pull "$CACTUS_CLIENT_NOTIFICATIONS_IMAGE"
 
 # --------------------------------------------------------------------------- #
+# Pre-pull teststack images                                                    #
+# --------------------------------------------------------------------------- #
+# The orchestrator lazily pulls any missing teststack image on first spawn, but pre-pulling here keeps
+# the first post-release spawn warm (the orchestrator is recreated below each release anyway). Fresh tag
+# per release, so this only fetches the new tags; old tags stay cached until pruned (see README).
+echo "==> Pre-pulling teststack images..."
+if command -v jq &>/dev/null; then
+    echo "$PODMAN_TESTSTACK_IMAGES" | jq -r '.[] | .[]' | sort -u | while read -r image; do
+        echo "    Pulling $image ..."
+        podman pull "$image"
+    done
+else
+    echo "    jq not found — skipping (orchestrator will lazy-pull on first spawn)."
+fi
+
+# --------------------------------------------------------------------------- #
 # cactus-orchestrator                                                          #
 # --------------------------------------------------------------------------- #
 echo "==> Deploying cactus-orchestrator..."

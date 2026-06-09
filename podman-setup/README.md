@@ -67,20 +67,22 @@ $EDITOR cactus.env
 
 Key variables to set:
 - `ORCHESTRATOR_DATABASE_URL` — asyncpg connection string for the orchestrator postgres.
-- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The orchestrator
-  expects these keys: `postgres`, `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner`
-  (the taskiq-worker reuses the `envoy` image, so no separate key). Add one entry per supported
-  CSIP-Aus version: **1.2 uses the `-v12` images (envoy 1.x), 1.3 uses the `-v13` images (envoy 2.x)**.
-  The tag prefix is the cactus-deploy release tag (`release-podman` → `podman`):
+- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The top-level key
+  **must be the `CSIPAusVersion` value the orchestrator looks up at spawn — `v1.2` / `v1.3`, with the
+  leading `v`** (a bare `1.2` silently fails to match and every spawn errors). Inner keys: `postgres`,
+  `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner` (the taskiq-worker reuses the `envoy` image,
+  so no separate key). Add one entry per supported CSIP-Aus version: **v1.2 uses the `-v12` images
+  (envoy 1.x), v1.3 uses the `-v13` images (envoy 2.x)**. The tag prefix is the cactus-deploy release
+  tag (`release-podman` → `podman`):
   ```json
-  {"1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-           "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
-           "envoy": "<registry>/cactus-envoy:podman-v12",
-           "runner": "<registry>/cactus-runner:podman-v12"},
-   "1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-           "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
-           "envoy": "<registry>/cactus-envoy:podman-v13",
-           "runner": "<registry>/cactus-runner:podman-v13"}}
+  {"v1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+            "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
+            "envoy": "<registry>/cactus-envoy:podman-v12",
+            "runner": "<registry>/cactus-runner:podman-v12"},
+   "v1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+            "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
+            "envoy": "<registry>/cactus-envoy:podman-v13",
+            "runner": "<registry>/cactus-runner:podman-v13"}}
   ```
 - `CERT_*_PATH` — host paths to PKI artefacts (generated in step 3).
 - `AUTH0_*` / `APP_SECRET_KEY` — OAuth2 credentials for cactus-ui.
@@ -177,9 +179,12 @@ chmod +x scripts/update.sh
 sudo ./scripts/update.sh ./cactus.env
 ```
 
-This pulls the latest images for `cactus-orchestrator`, `cactus-ui`, and `cactus-client-notifications`,
-then recreates those containers.  Teststack containers are not touched by this script — the
-orchestrator manages them at runtime.
+This pulls the latest
+`cactus-orchestrator`, `cactus-ui`, and `cactus-client-notifications` images and recreates those
+containers, and **pre-pulls the teststack images** named in `PODMAN_TESTSTACK_IMAGES`. The teststack
+containers themselves are not started here — the orchestrator creates them at runtime, and will lazily
+pull any teststack image still missing on first spawn (so the pre-pull is just there to keep that first
+spawn warm).
 
 Verify all three containers are running:
 
@@ -197,12 +202,30 @@ Re-run the update script whenever images are rebuilt:
 sudo ./scripts/update.sh ./cactus.env
 ```
 
-To update the teststack images referenced in `PODMAN_TESTSTACK_IMAGES`: edit `cactus.env`, then
-re-run `update.sh`.  The orchestrator reads `PODMAN_TESTSTACK_IMAGES` at startup; restart it to
-pick up changes:
+To update the teststack images referenced in `PODMAN_TESTSTACK_IMAGES`: edit `cactus.env` (point a
+version at its new release tag), then re-run `update.sh`. The orchestrator reads
+`PODMAN_TESTSTACK_IMAGES` from its environment at startup, and `update.sh` **recreates** the
+orchestrator container, so the new map is picked up automatically — no separate restart needed.
+
+> Use `update.sh`, not `podman restart cactus-orchestrator`. A plain restart reuses the container's
+> existing environment and will **not** pick up an edited `PODMAN_TESTSTACK_IMAGES`; only recreating
+> the container (what `update.sh` does) reloads it.
+
+We publish a **fresh image tag per release**, so updating a version always points it at a tag the host
+does not have yet — `update.sh` pre-pulls it, and the orchestrator would lazily pull it anyway. Tags
+are never overwritten in place, so there is no stale-image risk.
+
+### Pruning old teststack images
+
+Because every release uses a new tag, superseded teststack images accumulate on the host and are never
+removed automatically. Periodically reclaim disk once no teststack is running an old tag:
 
 ```bash
-podman restart cactus-orchestrator
+# Remove dangling/untagged layers (always safe)
+podman image prune -f
+
+# Then remove specific superseded teststack tags no longer referenced in PODMAN_TESTSTACK_IMAGES, e.g.
+podman rmi cactusimageregistry.azurecr.io/cactus-runner:podman-v13   # an old release tag
 ```
 
 ---
