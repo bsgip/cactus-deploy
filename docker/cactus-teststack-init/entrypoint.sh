@@ -17,7 +17,6 @@ set -e
 echo "Running migrations..."
 psql ${ENVOY_DATABASE_URL} -f /migrate.sql
 
-
 if [ -n "$MIGRATION_SENTINEL" ]; then
   echo "Recording completion at $MIGRATION_SENTINEL"
   mkdir -p "$(dirname "$MIGRATION_SENTINEL")" && touch "$MIGRATION_SENTINEL"
