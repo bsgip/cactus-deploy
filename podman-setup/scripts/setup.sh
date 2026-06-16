@@ -67,36 +67,18 @@ echo "    Place PKI artefacts here before starting the orchestrator."
 echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 # --------------------------------------------------------------------------- #
-# 5. nginx (CCM8 cipher support required)                                      #
+# nginx / TLS edge — intentionally NOT handled here                            #
 # --------------------------------------------------------------------------- #
-echo "==> Installing nginx..."
-apt-get install --no-install-recommends -y nginx certbot python3-certbot-nginx
-
-echo ""
-echo "    NOTE: AES-128-CCM8 support requires nginx compiled against an OpenSSL"
-echo "    build with CCM enabled.  Verify with:"
-echo "      openssl ciphers | grep -c CCM8"
-echo "    If the count is 0, install a custom nginx/OpenSSL build before proceeding."
-echo ""
-
-echo "==> Generating nginx config..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NGINX_TEMPLATE="$SCRIPT_DIR/../nginx/nginx.conf"
-NGINX_DEST="/etc/nginx/sites-available/cactus"
-
-# shellcheck disable=SC2016
-envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
-    < "$NGINX_TEMPLATE" > "$NGINX_DEST"
-
-ln -sf "$NGINX_DEST" /etc/nginx/sites-enabled/cactus
-rm -f /etc/nginx/sites-enabled/default
-
-echo "    Written to $NGINX_DEST"
-echo "    Place server certificates at /etc/nginx/certs/ before enabling nginx."
-echo "    Then run: certbot --nginx -d ${TEST_ORCHESTRATION_FQDN}"
+# The device-facing vhost requires AES-128-CCM8 (IEEE 2030.5), which stock
+# distro nginx cannot provide — nginx is custom-compiled against a CCM-capable
+# OpenSSL and installed out of band. This script does not install, configure,
+# or reload nginx, and does not issue TLS certs. Render the config template
+# yourself when placing it into your custom nginx layout:
+#   envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
+#       < ../nginx/nginx.conf > <your-nginx-conf-path>
 
 # --------------------------------------------------------------------------- #
-# 6. Pre-pull teststack images                                                 #
+# 5. Pre-pull teststack images                                                 #
 # --------------------------------------------------------------------------- #
 echo "==> Pre-pulling teststack images..."
 # Pull all unique images referenced in PODMAN_TESTSTACK_IMAGES.
@@ -112,14 +94,19 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
-# 7. Done                                                                      #
+# 6. Done                                                                      #
 # --------------------------------------------------------------------------- #
 echo ""
 echo "==> Infrastructure setup complete."
 echo ""
 echo "Next steps:"
 echo "  1. Generate PKI artefacts:  cd ../pki && ./create-cert.sh ..."
-echo "  2. Copy certs to /etc/cactus/pki/ and /etc/nginx/certs/"
-echo "  3. Obtain Let's Encrypt cert: certbot --nginx -d ${TEST_ORCHESTRATION_FQDN}"
-echo "  4. Set up external postgres and run Alembic migrations"
-echo "  5. Deploy containers: ./update.sh $ENV_FILE"
+echo "  2. Copy orchestrator certs to /etc/cactus/pki/"
+echo "  3. Install your custom-compiled (CCM8-capable) nginx, place its TLS certs,"
+echo "     and render ../nginx/nginx.conf into its config (see note above). Issue"
+echo "     the orchestration-domain cert (mechanism TBD), then reload nginx."
+echo "  4. Add root subuid/subgid for userns=auto, then 'podman system migrate':"
+echo "       grep -q '^root:' /etc/subuid || echo 'root:100000:1048576' >> /etc/subuid"
+echo "       grep -q '^root:' /etc/subgid || echo 'root:100000:1048576' >> /etc/subgid"
+echo "  5. Set up external postgres and run Alembic migrations"
+echo "  6. Deploy containers: ./update.sh $ENV_FILE"

@@ -39,18 +39,22 @@ other service binds `127.0.0.1` and so is unreachable from other teststacks on `
 
 ## (1) Prerequisites
 
-Ubuntu 24.04.  The setup script handles most of the installation, but verify:
+Ubuntu 24.04.  `setup.sh` installs Podman and Traefik and pre-pulls images, but you must provide:
 
 - Static IP assigned and DNS records created for both `TEST_EXECUTION_FQDN` and `TEST_ORCHESTRATION_FQDN`.
 - External PostgreSQL instance reachable from this host (for the orchestrator database).
 - Container registry credentials available if using a private registry.
+- A custom-compiled, CCM8-capable nginx (see the cipher note below) — `setup.sh` does **not** install or
+  configure nginx; the TLS edge is hand-managed (see §4).
 
-**AES-128-CCM8 cipher requirement:**  IEEE 2030.5 mandates this cipher for DER device connections.
-Standard nginx packages do not include it.  Verify support before proceeding:
+**AES-128-CCM8 cipher requirement:**  IEEE 2030.5 mandates this cipher for DER device connections, and
+standard distro nginx packages do not include it — which is why nginx is custom-compiled against a
+CCM-capable OpenSSL and installed out of band rather than by `setup.sh`.  Verify support on whatever
+nginx build you install:
 
 ```bash
 openssl ciphers | tr ':' '\n' | grep CCM8
-# If empty, install a CCM-capable OpenSSL build and rebuild nginx against it.
+# If empty, that OpenSSL build lacks CCM8 — rebuild nginx against a CCM-capable OpenSSL.
 ```
 
 ---
@@ -67,20 +71,22 @@ $EDITOR cactus.env
 
 Key variables to set:
 - `ORCHESTRATOR_DATABASE_URL` — asyncpg connection string for the orchestrator postgres.
-- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The orchestrator
-  expects these keys: `postgres`, `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner`
-  (the taskiq-worker reuses the `envoy` image, so no separate key). Add one entry per supported
-  CSIP-Aus version: **1.2 uses the `-v12` images (envoy 1.x), 1.3 uses the `-v13` images (envoy 2.x)**.
-  The tag prefix is the cactus-deploy release tag (`release-podman` → `podman`):
+- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The top-level key
+  **must be the `CSIPAusVersion` value the orchestrator looks up at spawn — `v1.2` / `v1.3`, with the
+  leading `v`** (a bare `1.2` silently fails to match and every spawn errors). Inner keys: `postgres`,
+  `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner` (the taskiq-worker reuses the `envoy` image,
+  so no separate key). Add one entry per supported CSIP-Aus version: **v1.2 uses the `-v12` images
+  (envoy 1.x), v1.3 uses the `-v13` images (envoy 2.x)**. The tag prefix is the cactus-deploy release
+  tag (`release-podman` → `podman`):
   ```json
-  {"1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-           "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
-           "envoy": "<registry>/cactus-envoy:podman-v12",
-           "runner": "<registry>/cactus-runner:podman-v12"},
-   "1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-           "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
-           "envoy": "<registry>/cactus-envoy:podman-v13",
-           "runner": "<registry>/cactus-runner:podman-v13"}}
+  {"v1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+            "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
+            "envoy": "<registry>/cactus-envoy:podman-v12",
+            "runner": "<registry>/cactus-runner:podman-v12"},
+   "v1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
+            "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
+            "envoy": "<registry>/cactus-envoy:podman-v13",
+            "runner": "<registry>/cactus-runner:podman-v13"}}
   ```
 - `CERT_*_PATH` — host paths to PKI artefacts (generated in step 3).
 - `AUTH0_*` / `APP_SECRET_KEY` — OAuth2 credentials for cactus-ui.
@@ -130,24 +136,47 @@ chmod 600 /etc/nginx/certs/server.key.pem
 
 ## (4) Infrastructure setup
 
-Run the setup script once on a fresh host.  It installs Podman, creates the `cactus-net` network,
-starts Traefik, installs nginx, and pre-pulls all teststack images.
+Run the setup script once on a fresh host.  It installs Podman, enables the rootful socket, creates the
+`cactus-net` network, starts Traefik, creates `/etc/cactus/pki`, and pre-pulls all teststack images. It
+does **not** install or configure nginx and does **not** issue TLS certificates — the TLS edge is
+hand-managed (see below).
 
 ```bash
 chmod +x scripts/setup.sh
 sudo ./scripts/setup.sh ./cactus.env
 ```
 
-After setup, obtain a Let's Encrypt certificate for the orchestration domain:
+### nginx / TLS edge (hand-managed)
+
+The device-facing vhost requires AES-128-CCM8, which stock distro nginx cannot provide, so nginx is
+**custom-compiled against a CCM-capable OpenSSL and installed out of band** — not by `setup.sh`. After
+setup:
+
+1. Install your custom nginx build and confirm the cipher: `openssl ciphers | grep -c CCM8` (must be ≥1).
+2. Place the device-facing TLS material at `/etc/nginx/certs/`: `server.fullchain.pem`, `server.key.pem`,
+   and `serca.cert.pem` (from §3).
+3. Render the config template into your nginx layout. A from-source build has no Debian
+   `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
+   ```bash
+   envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
+       < nginx/nginx.conf > <your-nginx-conf-path>
+   ```
+4. Issue the orchestration-domain (UI) certificate. The template references
+   `/etc/letsencrypt/live/${TEST_ORCHESTRATION_FQDN}/...`; obtain it however suits the host (e.g.
+   `certbot certonly --webroot` or a DNS-01 challenge — the `--nginx` plugin is not used, as it assumes a
+   distro nginx layout). Adjust the paths in the rendered config if you issue certs elsewhere.
+5. Validate and reload: `nginx -t && systemctl reload nginx` (or your build's equivalent).
+
+### Enable userns for teststack pods
+
+The orchestrator spawns every teststack pod with `userns=auto`, which requires the rootful user (`root`)
+to have a subordinate UID/GID range — without it **every spawn fails**. `setup.sh` does not set this; add
+it once on the host:
 
 ```bash
-sudo certbot --nginx -d cactus.example.com
-```
-
-Then reload nginx:
-
-```bash
-sudo nginx -t && sudo systemctl reload nginx
+grep -q '^root:' /etc/subuid || echo 'root:100000:1048576' | sudo tee -a /etc/subuid
+grep -q '^root:' /etc/subgid || echo 'root:100000:1048576' | sudo tee -a /etc/subgid
+sudo podman system migrate
 ```
 
 ---
@@ -177,9 +206,12 @@ chmod +x scripts/update.sh
 sudo ./scripts/update.sh ./cactus.env
 ```
 
-This pulls the latest images for `cactus-orchestrator`, `cactus-ui`, and `cactus-client-notifications`,
-then recreates those containers.  Teststack containers are not touched by this script — the
-orchestrator manages them at runtime.
+This pulls the latest
+`cactus-orchestrator`, `cactus-ui`, and `cactus-client-notifications` images and recreates those
+containers, and **pre-pulls the teststack images** named in `PODMAN_TESTSTACK_IMAGES`. The teststack
+containers themselves are not started here — the orchestrator creates them at runtime, and will lazily
+pull any teststack image still missing on first spawn (so the pre-pull is just there to keep that first
+spawn warm).
 
 Verify all three containers are running:
 
@@ -197,12 +229,30 @@ Re-run the update script whenever images are rebuilt:
 sudo ./scripts/update.sh ./cactus.env
 ```
 
-To update the teststack images referenced in `PODMAN_TESTSTACK_IMAGES`: edit `cactus.env`, then
-re-run `update.sh`.  The orchestrator reads `PODMAN_TESTSTACK_IMAGES` at startup; restart it to
-pick up changes:
+To update the teststack images referenced in `PODMAN_TESTSTACK_IMAGES`: edit `cactus.env` (point a
+version at its new release tag), then re-run `update.sh`. The orchestrator reads
+`PODMAN_TESTSTACK_IMAGES` from its environment at startup, and `update.sh` **recreates** the
+orchestrator container, so the new map is picked up automatically — no separate restart needed.
+
+> Use `update.sh`, not `podman restart cactus-orchestrator`. A plain restart reuses the container's
+> existing environment and will **not** pick up an edited `PODMAN_TESTSTACK_IMAGES`; only recreating
+> the container (what `update.sh` does) reloads it.
+
+We publish a **fresh image tag per release**, so updating a version always points it at a tag the host
+does not have yet — `update.sh` pre-pulls it, and the orchestrator would lazily pull it anyway. Tags
+are never overwritten in place, so there is no stale-image risk.
+
+### Pruning old teststack images
+
+Because every release uses a new tag, superseded teststack images accumulate on the host and are never
+removed automatically. Periodically reclaim disk once no teststack is running an old tag:
 
 ```bash
-podman restart cactus-orchestrator
+# Remove dangling/untagged layers (always safe)
+podman image prune -f
+
+# Then remove specific superseded teststack tags no longer referenced in PODMAN_TESTSTACK_IMAGES, e.g.
+podman rmi cactusimageregistry.azurecr.io/cactus-runner:podman-v13   # an old release tag
 ```
 
 ---

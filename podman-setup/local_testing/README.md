@@ -28,8 +28,17 @@ apt install -y podman
 systemctl enable --now podman.socket
 ls -l /run/podman/podman.sock                 # must exist before continuing
 
-# 2. The shared network the pod joins.
+# 2. The shared network the pod joins. It MUST use the netavark backend — CNI networks have
+#    dns_enabled=false, so the pod name won't resolve and the runner forwarder (Start step) fails
+#    with "Name does not resolve". A fresh 24.04 box defaults to netavark; a box upgraded from 22.04
+#    can be stuck on CNI (podman remembers the old backend). Check and force netavark if needed:
+podman info --format '{{.Host.NetworkBackend}}'    # must say: netavark (not cni)
+# if it says cni:
+#   mkdir -p /etc/containers/containers.conf.d
+#   printf '[network]\nnetwork_backend = "netavark"\n' > /etc/containers/containers.conf.d/netavark.conf
+#   # then re-check; clearing /var/lib/containers/storage/defaultNetworkBackend may be needed if it sticks
 podman network create cactus-net
+podman network inspect cactus-net --format 'dns={{.DNSEnabled}}'   # must say: dns=true
 
 # 3. The orchestrator package — spawn_local.py imports cactus_orchestrator and drives its real
 #    PodmanTeststackManager, so it must run from that repo's venv. Use the podman branch:
