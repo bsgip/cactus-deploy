@@ -1,6 +1,6 @@
 # UV Docker best practices: https://docs.astral.sh/uv/guides/integration/docker/
 # (1) Make database migration stage
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.13-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.16 /uv /bin/uv
 
 ARG ENVOY_VERSION
@@ -34,6 +34,8 @@ RUN alembic upgrade head --sql > /app/migrate.sql
 
 # (2) Final stage
 FROM alpine:3.23
+
+ENV MIGRATION_SENTINEL=""
 
 RUN apk add --no-cache inotify-tools bash postgresql-client
 
