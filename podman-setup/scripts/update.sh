@@ -17,6 +17,19 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
+
+# Collect every environment variable prefixed with CACTUS_IMAGE__ and turn
+# each one into a "-e NAME=VALUE" argument for podman run.
+#
+# ${!CACTUS_IMAGE__@} is bash indirect expansion: it expands to the *names*
+# of all currently-set variables starting with that prefix. This avoids
+# parsing `env` output, so values containing '=', spaces, or newlines are
+# handled safely (since we build an array, not a string).
+cactus_image_env_args=()
+for var_name in "${!CACTUS_IMAGE__@}"; do
+    cactus_image_env_args+=(-e "${var_name}=${!var_name}")
+done
+
 # --------------------------------------------------------------------------- #
 # Image registry login                                                         #
 # --------------------------------------------------------------------------- #
@@ -39,15 +52,35 @@ podman pull "$CACTUS_CLIENT_NOTIFICATIONS_IMAGE"
 # The orchestrator lazily pulls any missing teststack image on first spawn, but pre-pulling here keeps
 # the first post-release spawn warm (the orchestrator is recreated below each release anyway). Fresh tag
 # per release, so this only fetches the new tags; old tags stay cached until pruned (see README).
-echo "==> Pre-pulling teststack images..."
-if command -v jq &>/dev/null; then
-    echo "$PODMAN_TESTSTACK_IMAGES" | jq -r '.[] | .[]' | sort -u | while read -r image; do
-        echo "    Pulling $image ..."
+
+# Enumerate every CACTUS_IMAGE__* env var and pull each one's value as a
+# podman image, skipping any that already exist locally. Variables whose
+# NAME ends with __CSIP_AUS_VERSION are skipped entirely - they're version
+# labels, not image references.
+ 
+pulled=0
+already_present=0
+ 
+for var_name in "${!CACTUS_IMAGE__@}"; do
+    if [[ "$var_name" == *__CSIP_AUS_VERSION ]]; then
+        echo "Skipping ${var_name} - version label, not an image"
+        continue
+    fi
+ 
+    image="${!var_name}"
+ 
+    if podman image exists "$image"; then
+        echo "Already present, skipping pull: ${image} (${var_name})"
+        already_present=$((already_present + 1))
+    else
+        echo "Pulling: ${image} (${var_name})"
         podman pull "$image"
-    done
-else
-    echo "    jq not found — skipping (orchestrator will lazy-pull on first spawn)."
-fi
+        pulled=$((pulled + 1))
+    fi
+done
+
+echo "Done. Pulled: ${pulled}, already present: ${already_present}"
+ 
 
 # --------------------------------------------------------------------------- #
 # cactus-orchestrator                                                          #
@@ -73,11 +106,11 @@ podman run -d \
     -e PODMAN_SOCKET="${PODMAN_SOCKET}" \
     -e PODMAN_NETWORK="${PODMAN_NETWORK}" \
     -e PODMAN_RUNNER_PORT="${PODMAN_RUNNER_PORT}" \
-    -e PODMAN_TESTSTACK_IMAGES="${PODMAN_TESTSTACK_IMAGES}" \
     -e CERT_SERCA_PATH="${CERT_SERCA_PATH}" \
     -e CERT_MCA_PATH="${CERT_MCA_PATH}" \
     -e CERT_MICA_CRT_PATH="${CERT_MICA_CRT_PATH}" \
     -e CERT_MICA_KEY_PATH="${CERT_MICA_KEY_PATH}" \
+    "${cactus_image_env_args[@]}" \
     "$CACTUS_ORCHESTRATOR_IMAGE"
 
 # --------------------------------------------------------------------------- #

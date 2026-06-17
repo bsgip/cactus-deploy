@@ -14,8 +14,8 @@ Web UI Clients (eg https://cactus.host/)
       └──► cactus-ui :5000             ← Web UI
             │
             |
-            └──► cactus-orchestrator   ← Web Service API
-                  │                      (access to podman network 'cactus-net')
+            └──► cactus-orchestrator :8000   ← Web Service API
+                  │                            (access to podman network 'cactus-net')
                   |
                   └──► Podman socket   ← Creating Pods / accessing running pods 
 ```

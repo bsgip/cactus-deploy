@@ -77,24 +77,9 @@ echo "    See ../pki/README.md and ../pki/create-cert.sh."
 #   envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
 #       < ../nginx/nginx.conf > <your-nginx-conf-path>
 
-# --------------------------------------------------------------------------- #
-# 5. Pre-pull teststack images                                                 #
-# --------------------------------------------------------------------------- #
-echo "==> Pre-pulling teststack images..."
-# Pull all unique images referenced in PODMAN_TESTSTACK_IMAGES.
-# jq is used to flatten the image map; install it if missing.
-if command -v jq &>/dev/null; then
-    echo "$PODMAN_TESTSTACK_IMAGES" | jq -r '.[] | .[]' | sort -u | while read -r image; do
-        echo "    Pulling $image ..."
-        podman pull "$image"
-    done
-else
-    echo "    jq not found — skipping automatic image pre-pull."
-    echo "    Install jq and re-run, or pull images manually with 'podman pull <image>'."
-fi
 
 # --------------------------------------------------------------------------- #
-# 6. Done                                                                      #
+# 5. Done                                                                      #
 # --------------------------------------------------------------------------- #
 echo ""
 echo "==> Infrastructure setup complete."
