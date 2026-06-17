@@ -4,35 +4,50 @@ NOTE: All commands should be run as root unless specified otherwise.
 
 ## Architecture overview
 
+### Web UI
 ```
-DER clients (TLS 1.2 / AES-128-CCM8)
+Web UI Clients (eg https://cactus.host/)
+│
+└──► nginx :443                        ← Standard TLS Termination 
+      │                                  (eg LetsEncrypt, standard ciphers)
+      |
+      └──► cactus-ui :5000             ← Web UI
+            │
+            |
+            └──► cactus-orchestrator   ← Web Service API
+                  │                      (access to podman network 'cactus-net')
+                  |
+                  └──► Podman socket   ← Creating Pods / accessing running pods 
+```
+
+### DER Clients
+
+```
+DER clients (TLS 1.2 / AES-128-CCM8) via subdomain (eg https://run-123.cactus.host/)
+│        
+│        
+└──► nginx :443                        ← TLS termination; CCM8 cipher; mTLS verification
         │
-        ▼
-    nginx :443                          ← TLS termination; CCM8 cipher; mTLS verification
-        │
-        ├──► cactus-ui :5000            ← Flask UI (proxied directly from nginx)
-        │
-        └──► Traefik :80               ← dynamic routing for teststack runners
-                │                         (PathPrefix + StripPrefix rules auto-registered via Podman labels)
-                └──► envoy-svc-{id}     ← teststack POD on cactus-net (the pod name is its DNS alias).
-                        │                  Traefik strips /envoy-svc-{id} and routes to the runner.
+        └──► Traefik :80         ← dynamic routing for test pods
+               │                   (Requests will be downstream of a constant href_prefix eg /envoy)
+               |
+               └──► run-{id}     ← teststack POD on cactus-net (the pod name is its DNS alias).
+                        │          Traefik strips /envoy and routes to the runner.
+                        |
                         │  one pod = one shared network namespace; members talk over localhost:
                         ├── runner          ← sole ingress: the only member bound to 0.0.0.0:8080
                         ├── envoy           ← 127.0.0.1:8000 (the runner proxies device traffic here)
                         ├── envoy-admin     ← 127.0.0.1:8001
                         ├── postgres        ← 127.0.0.1 (listen_addresses=localhost)
-                        ├── taskiq-worker   ← notification fan-out (no inbound listener)
+                        ├── taskiq-worker   ← notification transmit (no inbound listener)
                         └── rabbitmq        ← in-pod broker
-
-    cactus-orchestrator ─────────────► Podman socket  ← creates/destroys teststack pods + containers
-    (container on cactus-net)            reaches each runner for control at http://envoy-svc-{id}:8080
 ```
 
 Teststacks are created and destroyed at runtime by `cactus-orchestrator` via the Podman API socket.
 No template resources exist on disk — for each teststack the orchestrator creates a single **pod** on
-`cactus-net` (the pod name doubles as its DNS alias) and runs the containers from the image map in
-`PODMAN_TESTSTACK_IMAGES` inside it. Because all members share the pod's network namespace they reach
-each other over `localhost`; only the runner binds `0.0.0.0`, making it the single ingress, while every
+`cactus-net` (the pod name doubles as its DNS alias) and runs the containers from the images in 
+orchestrator. Because all members share the pod's network namespace they reach each other over `localhost`; 
+only the runner binds `0.0.0.0`, making it the single ingress, while every
 other service binds `127.0.0.1` and so is unreachable from other teststacks on `cactus-net`.
 
 ---
@@ -71,23 +86,22 @@ $EDITOR cactus.env
 
 Key variables to set:
 - `ORCHESTRATOR_DATABASE_URL` — asyncpg connection string for the orchestrator postgres.
-- `PODMAN_TESTSTACK_IMAGES` — JSON map of CSIP-Aus version → service image tags. The top-level key
-  **must be the `CSIPAusVersion` value the orchestrator looks up at spawn — `v1.2` / `v1.3`, with the
-  leading `v`** (a bare `1.2` silently fails to match and every spawn errors). Inner keys: `postgres`,
-  `pubsub` (RabbitMQ), `teststack_init`, `envoy`, `runner` (the taskiq-worker reuses the `envoy` image,
-  so no separate key). Add one entry per supported CSIP-Aus version: **v1.2 uses the `-v12` images
-  (envoy 1.x), v1.3 uses the `-v13` images (envoy 2.x)**. The tag prefix is the cactus-deploy release
-  tag (`release-podman` → `podman`):
-  ```json
-  {"v1.2": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-            "teststack_init": "<registry>/cactus-teststack-init:podman-v12",
-            "envoy": "<registry>/cactus-envoy:podman-v12",
-            "runner": "<registry>/cactus-runner:podman-v12"},
-   "v1.3": {"postgres": "postgres:15", "pubsub": "rabbitmq:3",
-            "teststack_init": "<registry>/cactus-teststack-init:podman-v13",
-            "envoy": "<registry>/cactus-envoy:podman-v13",
-            "runner": "<registry>/cactus-runner:podman-v13"}}
-  ```
+- `CACTUS_IMAGE__*` — See cactus-orchestrator README.md for more info:
+```
+CACTUS_IMAGE__V1_2__CSIP_AUS_VERSION = "v1.2"
+CACTUS_IMAGE__V1_2__POSTGRES = "docker.io/library/postgres:15"
+CACTUS_IMAGE__V1_2__RABBITMQ = "docker.io/library/rabbitmq:3"
+CACTUS_IMAGE__V1_2__INIT = "cactusimageregistry.azurecr.io/cactus-teststack-init:158-v12"
+CACTUS_IMAGE__V1_2__ENVOY = "cactusimageregistry.azurecr.io/cactus-envoy:158-v12"
+CACTUS_IMAGE__V1_2__RUNNER = "cactusimageregistry.azurecr.io/cactus-runner:158-v12"
+
+CACTUS_IMAGE__V1_3__CSIP_AUS_VERSION = "v1.3"
+CACTUS_IMAGE__V1_3__POSTGRES = "docker.io/library/postgres:15"
+CACTUS_IMAGE__V1_3__RABBITMQ = "docker.io/library/rabbitmq:3"
+CACTUS_IMAGE__V1_3__INIT = "cactusimageregistry.azurecr.io/cactus-teststack-init:158-v13"
+CACTUS_IMAGE__V1_3__ENVOY = "cactusimageregistry.azurecr.io/cactus-envoy:158-v13"
+CACTUS_IMAGE__V1_3__RUNNER = "cactusimageregistry.azurecr.io/cactus-runner:158-v13"
+```
 - `CERT_*_PATH` — host paths to PKI artefacts (generated in step 3).
 - `AUTH0_*` / `APP_SECRET_KEY` — OAuth2 credentials for cactus-ui.
 - `JWTAUTH_*` — JWT validation settings for cactus-orchestrator.
