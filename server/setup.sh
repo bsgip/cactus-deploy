@@ -95,6 +95,8 @@ echo "==> Starting Traefik..."
 # Routes are discovered from container labels on cactus-net. Each teststack's runner carries the
 # PathPrefix router plus a per-stack StripPrefix middleware, so teststack routing is created
 # dynamically as the orchestrator spawns runners — no static Traefik config needed here.
+TRAEFIK_IMAGE="docker.io/library/traefik:v3"
+podman image pull "$TRAEFIK_IMAGE"
 podman rm -f traefik 2>/dev/null || true
 podman run -d \
     --name traefik \
@@ -102,7 +104,7 @@ podman run -d \
     --network cactus-net \
     -v /run/podman/podman.sock:/var/run/docker.sock:z \
     -p 127.0.0.1:5001:80 \
-    traefik:v3 \
+    "$TRAEFIK_IMAGE" \
         --providers.docker=true \
         --providers.docker.endpoint=unix:///var/run/docker.sock \
         --providers.docker.exposedbydefault=false \
