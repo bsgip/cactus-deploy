@@ -41,15 +41,10 @@ while IFS= read -r line; do
     var_name="${line#\$\{}"    # strip leading ${
     var_name="${var_name%\}}"  # strip trailing }
 
-    echo "Is '$var_name' set"
-
     [[ -n "${seen[$var_name]:-}" ]] && continue
     seen[$var_name]=1
 
-    echo "seen value for '$var_name' '${!var_name:-}'"
-
     if [[ -z "${!var_name:-}" ]]; then
-        echo "missing '$var_name'"
         missing_vars+=("$var_name")
     fi
 done <<< "$ENVSUBST_VARS"
