@@ -87,7 +87,7 @@ echo "==> Creating cactus-net..."
 podman network exists cactus-net && echo "    Already exists, skipping." || podman network create cactus-net
 
 # --------------------------------------------------------------------------- #
-# Traefik                                                                   #
+# Traefik                                                                     #
 # --------------------------------------------------------------------------- #
 echo "==> Starting Traefik..."
 
@@ -112,7 +112,7 @@ podman run -d \
         --entrypoints.web.address=:80
 
 # --------------------------------------------------------------------------- #
-# Certificate directories                                                   #
+# Certificate directories                                                     #
 # --------------------------------------------------------------------------- #
 echo "==> Creating certificate directory /etc/cactus/pki..."
 mkdir -p /etc/cactus/pki
@@ -122,7 +122,7 @@ echo "    Place PKI artefacts here before starting the orchestrator."
 echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 # --------------------------------------------------------------------------- #
-# nginx / TLS edge — intentionally NOT handled here                            #
+# nginx / TLS edge — intentionally NOT handled here                           #
 # --------------------------------------------------------------------------- #
 # The device-facing vhost requires AES-128-CCM8 (IEEE 2030.5), which stock
 # distro nginx cannot provide — nginx is custom-compiled against a CCM-capable
@@ -134,7 +134,7 @@ echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 
 # --------------------------------------------------------------------------- #
-# Done                                                                      #
+# Done                                                                        #
 # --------------------------------------------------------------------------- #
 echo ""
 echo "==> Infrastructure setup complete."
