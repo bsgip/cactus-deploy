@@ -27,6 +27,8 @@ ${CACTUS_FQDN}
 ${CACTUS_FQDN_REGEX}
 ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}
 ${ENVOY_PREFIX}
+${CERT_SERVER_CERT_FULLCHAIN_PATH}
+${CERT_SERVER_KEY_PATH}
 EOF
 )
 
@@ -87,8 +89,8 @@ server {
     server_name ~^.+\.${CACTUS_FQDN_REGEX}$;
 
     # Server certificate (from pki/create-cert.sh — server-chain output, fullchain PEM)
-    ssl_certificate     /etc/nginx/certs/server.fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/server.key.pem;
+    ssl_certificate     ${CERT_SERVER_CERT_FULLCHAIN_PATH};
+    ssl_certificate_key ${CERT_SERVER_KEY_PATH};
 
     # IEEE 2030.5 mandates TLS 1.2 and the CCM8 cipher suite
     ssl_protocols TLSv1.2;
