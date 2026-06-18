@@ -11,13 +11,15 @@ Web UI Clients (eg https://cactus.host/)
 └──► nginx :443                        ← Standard TLS Termination 
       │                                  (eg LetsEncrypt, standard ciphers)
       |
-      └──► cactus-ui :5000             ← Web UI
-            │
-            |
-            └──► cactus-orchestrator :8000   ← Web Service API
-                  │                            (access to podman network 'cactus-net')
-                  |
-                  └──► Podman socket   ← Creating Pods / accessing running pods 
+      ├──► cactus-ui :5000             ← Web UI
+      |     │
+      |     |
+      |     └──► cactus-orchestrator :8000   ← Web Service API
+      |           │                            (access to podman network 'cactus-net')
+      |           |
+      |           └──► Podman socket   ← Creating Pods / accessing running pods 
+      |
+      └──► cactus-client-notifications :5002 ← Seperate service to support cactus-client
 ```
 
 ### DER Clients
@@ -26,9 +28,9 @@ Web UI Clients (eg https://cactus.host/)
 DER clients (TLS 1.2 / AES-128-CCM8) via subdomain (eg https://run-123.cactus.host/)
 │        
 │        
-└──► nginx :443                        ← TLS termination; CCM8 cipher; mTLS verification
+└──► nginx :443                  ← TLS termination; CCM8 cipher; mTLS verification
         │
-        └──► Traefik :80         ← dynamic routing for test pods
+        └──► Traefik :5001       ← dynamic routing for test pods
                │                   (Requests will be downstream of a constant href_prefix eg /envoy)
                |
                └──► run-{id}     ← teststack POD on cactus-net (the pod name is its DNS alias).
@@ -76,10 +78,10 @@ openssl ciphers | tr ':' '\n' | grep CCM8
 
 ## (2) Prepare configuration
 
-1. Copy `sample.env` to `cactus.env` in this directory and fill in all values:
+1. Copy `sample.cactus.env` to `cactus.env` in this directory and fill in all values:
 
 ```bash
-cp sample.env cactus.env
+cp sample.cactus.env cactus.env
 chmod 600 cactus.env   # contains secrets — restrict permissions
 $EDITOR cactus.env
 ```
@@ -156,8 +158,7 @@ does **not** install or configure nginx and does **not** issue TLS certificates 
 hand-managed (see below).
 
 ```bash
-chmod +x scripts/setup.sh
-sudo ./scripts/setup.sh ./cactus.env
+sudo ./setup.sh ./cactus.env
 ```
 
 ### nginx / TLS edge (hand-managed)
@@ -172,11 +173,10 @@ setup:
 3. Render the config template into your nginx layout. A from-source build has no Debian
    `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
    ```bash
-   envsubst '${TEST_EXECUTION_FQDN} ${TEST_ORCHESTRATION_FQDN} ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}' \
-       < nginx/nginx.conf > <your-nginx-conf-path>
+   ./nginx-config.sh > <your-nginx-conf-path>
    ```
 4. Issue the orchestration-domain (UI) certificate. The template references
-   `/etc/letsencrypt/live/${TEST_ORCHESTRATION_FQDN}/...`; obtain it however suits the host (e.g.
+   `/etc/letsencrypt/live/${CACTUS_FQDN}/...`; obtain it however suits the host (e.g.
    `certbot certonly --webroot` or a DNS-01 challenge — the `--nginx` plugin is not used, as it assumes a
    distro nginx layout). Adjust the paths in the rendered config if you issue certs elsewhere.
 5. Validate and reload: `nginx -t && systemctl reload nginx` (or your build's equivalent).
@@ -216,8 +216,7 @@ The orchestrator requires an external PostgreSQL instance.
 ## (6) Deploy application containers
 
 ```bash
-chmod +x scripts/update.sh
-sudo ./scripts/update.sh ./cactus.env
+sudo ./update.sh ./cactus.env
 ```
 
 This pulls the latest

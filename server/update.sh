@@ -98,7 +98,8 @@ podman run -d \
     -v "${CERT_MICA_CRT_PATH}:${CERT_MICA_CRT_PATH}:ro,z" \
     -v "${CERT_MICA_KEY_PATH}:${CERT_MICA_KEY_PATH}:ro,z" \
     -e ORCHESTRATOR_DATABASE_URL="${ORCHESTRATOR_DATABASE_URL}" \
-    -e TEST_EXECUTION_FQDN="${TEST_EXECUTION_FQDN}" \
+    -e CACTUS_FQDN="${CACTUS_FQDN}" \
+    -e ENVOY_PREFIX="${ENVOY_PREFIX}" \
     -e JWTAUTH_JWKS_URL="${JWTAUTH_JWKS_URL}" \
     -e JWTAUTH_ISSUER="${JWTAUTH_ISSUER}" \
     -e JWTAUTH_AUDIENCE="${JWTAUTH_AUDIENCE}" \
@@ -146,7 +147,7 @@ podman run -d \
     --name cactus-client-notifications \
     --restart always \
     --network cactus-net \
-    -p 127.0.0.1:5001:8080 \
+    -p 127.0.0.1:5002:8080 \
     -e SERVER_URL="${CACTUS_CLIENT_NOTIFICATIONS_SERVER_URL}" \
     -e MOUNT_POINT="${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}" \
     "$CACTUS_CLIENT_NOTIFICATIONS_IMAGE"

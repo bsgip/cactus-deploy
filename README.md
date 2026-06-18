@@ -21,11 +21,8 @@ The diagram below illustrates the layered architecture of the platform. Teststac
 
 ```text
 cactus-deploy/
-├── docker/              # Dockerfiles for cactus components
-├── podman-setup/        # Deployment scripts, nginx config, and environment template
-│   ├── nginx/               # nginx config template (envsubst-processed at setup time)
-│   ├── scripts/             # setup.sh (one-shot infra setup) and update.sh (redeploy containers)
-│   └── sample.env           # Environment variable template — copy to cactus.env and fill in
+├── docker/        # Dockerfiles for cactus components
+├── server/        # Deployment scripts, nginx config, and environment template
 ├── pki/                 # IEEE 2030.5 PKI certificate generation
 └── docker/versions.lock # Pinned component versions
 ```

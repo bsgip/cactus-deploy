@@ -1,10 +1,15 @@
 #!/bin/bash
 # One-shot infrastructure setup for the Cactus platform (Podman-based deployment).
-# Run as root on a fresh Ubuntu 24.04 host.
+# Run as root on a fresh Ubuntu host.
 # Requires a populated cactus.env in the same directory as this script.
 # Usage: sudo ./setup.sh ./cactus.env
 
 set -euo pipefail
+
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo "Error: this script must be run as root (try: sudo $0)" >&2
+    exit 1
+fi
 
 ENV_FILE="${1:-./cactus.env}"
 
@@ -18,7 +23,40 @@ fi
 source "$ENV_FILE"
 
 # --------------------------------------------------------------------------- #
-# 1. Podman                                                                    #
+# User                                                                        #
+# --------------------------------------------------------------------------- #
+
+GROUP_NAME="cactus"
+USER_NAME="cactus"
+HOME_DIR="/localhome/${USER_NAME}"
+
+echo "==> Ensuring User '${USER_NAME}' and Group '${GROUP_NAME}'..."
+
+if getent group "${GROUP_NAME}" >/dev/null 2>&1; then
+    echo "Group '${GROUP_NAME}' already exists, skipping."
+else
+    echo "Creating group '${GROUP_NAME}' ..."
+    groupadd "${GROUP_NAME}"
+fi
+
+if getent passwd "${USER_NAME}" >/dev/null 2>&1; then
+    echo "User '${USER_NAME}' already exists, skipping creation."
+else
+    echo "Creating user '${USER_NAME}' with home directory ${HOME_DIR} ..."
+    useradd \
+        --create-home \
+        --home-dir "${HOME_DIR}" \
+        --gid "${GROUP_NAME}" \
+        --shell /bin/bash \
+        "${USER_NAME}"
+
+    mkdir -p "${HOME_DIR}"
+    chown "${USER_NAME}:${GROUP_NAME}" "${HOME_DIR}"
+    chmod 750 "${HOME_DIR}"
+fi
+
+# --------------------------------------------------------------------------- #
+# Podman                                                                      #
 # --------------------------------------------------------------------------- #
 echo "==> Installing Podman..."
 apt-get update -q
@@ -28,14 +66,28 @@ echo "==> Enabling Podman socket (rootful)..."
 systemctl enable --now podman.socket
 echo "    Socket: $(ls -la /run/podman/podman.sock)"
 
-# --------------------------------------------------------------------------- #
-# 2. Network                                                                   #
-# --------------------------------------------------------------------------- #
+echo "==> Adding podman socket to cactus group"
+tee /etc/tmpfiles.d/podman.conf <<EOF
+d /run/podman 0770 root cactus - -
+EOF
+systemd-tmpfiles --create /etc/tmpfiles.d/podman.conf
+mkdir -p /etc/systemd/system/podman.socket.d
+tee /etc/systemd/system/podman.socket.d/override.conf <<EOF
+[Socket]
+SocketGroup=cactus
+SocketMode=0770
+EOF
+systemctl daemon-reload
+systemctl restart podman.socket
+
+# Enable root socket as default socket for cactus user
+echo 'export CONTAINER_HOST=unix:///run/podman/podman.sock' >> "${HOME_DIR}/.bashrc"
+
 echo "==> Creating cactus-net..."
 podman network exists cactus-net && echo "    Already exists, skipping." || podman network create cactus-net
 
 # --------------------------------------------------------------------------- #
-# 3. Traefik                                                                   #
+# Traefik                                                                   #
 # --------------------------------------------------------------------------- #
 echo "==> Starting Traefik..."
 
@@ -49,7 +101,7 @@ podman run -d \
     --restart always \
     --network cactus-net \
     -v /run/podman/podman.sock:/var/run/docker.sock:z \
-    -p 127.0.0.1:80:80 \
+    -p 127.0.0.1:5001:80 \
     traefik:v3 \
         --providers.docker=true \
         --providers.docker.endpoint=unix:///var/run/docker.sock \
@@ -58,7 +110,7 @@ podman run -d \
         --entrypoints.web.address=:80
 
 # --------------------------------------------------------------------------- #
-# 4. Certificate directories                                                   #
+# Certificate directories                                                   #
 # --------------------------------------------------------------------------- #
 echo "==> Creating certificate directory /etc/cactus/pki..."
 mkdir -p /etc/cactus/pki
@@ -79,7 +131,7 @@ echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 
 # --------------------------------------------------------------------------- #
-# 5. Done                                                                      #
+# Done                                                                      #
 # --------------------------------------------------------------------------- #
 echo ""
 echo "==> Infrastructure setup complete."
