@@ -168,7 +168,7 @@ server {
 # Redirect HTTP → HTTPS for both domains
 server {
     listen 80;
-    server_name ~^.+\.${CACTUS_FQDN_REGEX}$; ${CACTUS_FQDN};
+    server_name ~^.+\.${CACTUS_FQDN_REGEX}$ ${CACTUS_FQDN};
     return 301 https://$host$request_uri;
 }
 
