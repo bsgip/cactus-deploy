@@ -117,6 +117,7 @@ podman run -d \
 echo "==> Creating certificate directory /etc/cactus/pki..."
 mkdir -p /etc/cactus/pki
 chmod 700 /etc/cactus/pki
+chown -R $USER_NAME:$GROUP_NAME /etc/cactus
 echo "    Place PKI artefacts here before starting the orchestrator."
 echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
