@@ -135,6 +135,9 @@ server {
     # Let's Encrypt certificate (renewed via certbot; paths are standard certbot output)
     ssl_certificate     /etc/letsencrypt/live/${CACTUS_FQDN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${CACTUS_FQDN}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
