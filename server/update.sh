@@ -92,6 +92,7 @@ podman run -d \
     --restart always \
     --network cactus-net \
     -p 127.0.0.1:8000:8080 \
+    --group-add "$(getent group cactus | cut -d: -f3)" \
     -v /run/podman/podman.sock:/run/podman/podman.sock:z \
     -v "${CERT_SERCA_PATH}:${CERT_SERCA_PATH}:ro,z" \
     -v "${CERT_MCA_PATH}:${CERT_MCA_PATH}:ro,z" \
