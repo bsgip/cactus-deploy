@@ -29,6 +29,7 @@ ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}
 ${ENVOY_PREFIX}
 ${CERT_SERVER_CERT_FULLCHAIN_PATH}
 ${CERT_SERVER_KEY_PATH}
+${CERT_SERCA_PATH}
 EOF
 )
 
@@ -94,7 +95,7 @@ server {
 
     # Mutual TLS — verify client certificates against the SERCA chain
     # Depth 3: SERCA (root, not counted) → MCA → MICA → client cert
-    ssl_client_certificate /etc/nginx/certs/serca.cert.pem;
+    ssl_client_certificate ${CERT_SERCA_PATH};
     ssl_verify_client on;
     ssl_verify_depth 3;
 
