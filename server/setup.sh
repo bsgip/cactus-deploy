@@ -60,7 +60,7 @@ fi
 # --------------------------------------------------------------------------- #
 echo "==> Installing Podman..."
 apt-get update -q
-apt-get install --no-install-recommends -y podman
+apt-get install -y podman
 
 echo "==> Enabling Podman socket (rootful)..."
 systemctl enable --now podman.socket
