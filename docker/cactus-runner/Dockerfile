@@ -46,6 +46,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HOST='0.0.0.0'
 ENV PORT='8080'
+ENV ENVOY_PROXY_PREFIX="/"
+ENV MOUNT_POINT="/"
 
 # run app - we can start immediately as the app health check will give us definite information about whether the underlying
 # services have started (or not)
