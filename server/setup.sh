@@ -72,21 +72,38 @@ systemctl enable --now podman.socket
 echo "    Socket: $(ls -la /run/podman/podman.sock)"
 
 echo "==> Adding podman socket to cactus group"
-tee /etc/tmpfiles.d/podman.conf <<EOF
-d /run/podman 0770 root cactus - -
-EOF
-systemd-tmpfiles --create /etc/tmpfiles.d/podman.conf
+socket_conf_changed=0
+
+tmpfiles_content="d /run/podman 0770 root cactus - -"
+if [[ "$(cat /etc/tmpfiles.d/podman.conf 2>/dev/null)" != "$tmpfiles_content" ]]; then
+    echo "$tmpfiles_content" > /etc/tmpfiles.d/podman.conf
+    systemd-tmpfiles --create /etc/tmpfiles.d/podman.conf
+    socket_conf_changed=1
+fi
+
 mkdir -p /etc/systemd/system/podman.socket.d
-tee /etc/systemd/system/podman.socket.d/override.conf <<EOF
-[Socket]
+override_content="[Socket]
 SocketGroup=cactus
-SocketMode=0770
-EOF
-systemctl daemon-reload
-systemctl restart podman.socket
+SocketMode=0770"
+if [[ "$(cat /etc/systemd/system/podman.socket.d/override.conf 2>/dev/null)" != "$override_content" ]]; then
+    echo "$override_content" > /etc/systemd/system/podman.socket.d/override.conf
+    socket_conf_changed=1
+fi
+
+# Only restart when the config actually changed: restarting podman.socket replaces the
+# socket inode, orphaning the bind mount of any already-running container (orchestrator,
+# traefik), which then must be recreated. Re-running setup.sh must not trigger that.
+if [[ "$socket_conf_changed" -eq 1 ]]; then
+    systemctl daemon-reload
+    systemctl restart podman.socket
+else
+    echo "    Socket group config already current, skipping restart."
+fi
 
 # Enable root socket as default socket for cactus user
-echo 'export CONTAINER_HOST=unix:///run/podman/podman.sock' >> "${HOME_DIR}/.bashrc"
+container_host_line='export CONTAINER_HOST=unix:///run/podman/podman.sock'
+grep -qxF "$container_host_line" "${HOME_DIR}/.bashrc" 2>/dev/null \
+    || echo "$container_host_line" >> "${HOME_DIR}/.bashrc"
 
 echo "==> Creating cactus-net..."
 podman network exists cactus-net && echo "    Already exists, skipping." || podman network create cactus-net
