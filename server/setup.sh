@@ -60,7 +60,12 @@ fi
 # --------------------------------------------------------------------------- #
 echo "==> Installing Podman..."
 apt-get update -q
-apt-get install -y podman
+# podman alone is not enough for this deployment; pin the critical companions explicitly rather than
+# relying on apt Recommends (which a --no-install-recommends install would silently skip):
+#   aardvark-dns + netavark : container name resolution / networking on cactus-net
+#   catatonit               : PID 1 init for pod infra containers; `podman pod create` fails without it
+# (uidmap, for userns=auto, still comes via Recommends since we don't pass --no-install-recommends.)
+apt-get install -y podman aardvark-dns netavark catatonit
 
 echo "==> Enabling Podman socket (rootful)..."
 systemctl enable --now podman.socket
@@ -116,9 +121,12 @@ podman run -d \
 # --------------------------------------------------------------------------- #
 echo "==> Creating certificate directory /etc/cactus/pki..."
 mkdir -p /etc/cactus/pki
-chmod 700 /etc/cactus/pki
+# 750 (not 700): the orchestrator runs as non-root 'appuser' with supplementary group 'cactus'
+# (see --group-add in update.sh) and must be able to traverse this dir to read the MICA signing key.
+chmod 750 /etc/cactus/pki
 chown -R $USER_NAME:$GROUP_NAME /etc/cactus
-echo "    Place PKI artefacts here before starting the orchestrator."
+echo "    Place PKI artefacts here before starting the orchestrator (owned ${USER_NAME}:${GROUP_NAME},"
+echo "    dirs 750 / files 640 so the orchestrator's 'cactus' group can read the keys)."
 echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 # --------------------------------------------------------------------------- #

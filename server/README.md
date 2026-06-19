@@ -133,12 +133,20 @@ This produces:
 Copy the artefacts to the paths configured in `cactus.env`:
 
 ```bash
-mkdir -p /etc/cactus/pki
-chmod 700 /etc/cactus/pki
+mkdir -p /etc/cactus/pki/cactus-chain
+chmod 750 /etc/cactus/pki
 cp cactus/serca.cert.pem                          /etc/cactus/pki/serca.cert.pem
 cp cactus-chain/mca.cert.pem                      /etc/cactus/pki/cactus-chain/mca.cert.pem
 cp cactus-chain/mica.cert.pem                     /etc/cactus/pki/cactus-chain/mica.cert.pem
 cp cactus-chain/mica.key.pem                      /etc/cactus/pki/cactus-chain/mica.key.pem
+
+# The orchestrator container runs as non-root 'appuser' with supplementary group 'cactus'
+# (--group-add in update.sh). It reads the MICA signing key at cert-generation time, so the
+# PKI must be group-cactus readable: dirs traversable (750), key/cert files readable (640).
+# Without this, certificate generation fails with PermissionError on mica.key.pem.
+chgrp -R cactus /etc/cactus/pki
+find /etc/cactus/pki -type d -exec chmod 750 {} \;
+find /etc/cactus/pki -type f -exec chmod 640 {} \;
 
 # nginx server certificate
 mkdir -p /etc/nginx/certs
