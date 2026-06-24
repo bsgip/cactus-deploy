@@ -122,8 +122,6 @@ spec:
               value: "ssl-client-cert"
             - name: ENABLE_NOTIFICATIONS
               value: "True"
-            - name: RABBIT_MQ_BROKER_URL
-              value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
             - name: STATIC_REGISTRATION_PIN
@@ -132,6 +130,8 @@ spec:
               value: logconf.server.json
             - name: NOTIFICATION_DISABLE_TLS_VERIFY
               value: "True"
+            - name: NOTIFICATIONS_WITH_MTLS
+              value: "False"
 
           volumeMounts:
             - name: shared
@@ -152,8 +152,6 @@ spec:
               value: "ssl-client-cert"
             - name: ENABLE_NOTIFICATIONS
               value: "True"
-            - name: RABBIT_MQ_BROKER_URL
-              value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
             - name: ADMIN_USERNAME
