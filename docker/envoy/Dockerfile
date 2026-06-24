@@ -38,7 +38,6 @@ COPY --from=builder /app/.venv /app/.venv
 
 # logging config
 COPY logconf.admin.json ./logconf.admin.json
-COPY logconf.notification.json ./logconf.notification.json
 COPY logconf.server.json ./logconf.server.json
 RUN mkdir /shared
 
