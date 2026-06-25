@@ -112,6 +112,8 @@ podman run -d \
     -e CERT_MCA_PATH="${CERT_MCA_PATH}" \
     -e CERT_MICA_CRT_PATH="${CERT_MICA_CRT_PATH}" \
     -e CERT_MICA_KEY_PATH="${CERT_MICA_KEY_PATH}" \
+    --log-driver=journald \
+    --log-opt=tag=cactus-orchestrator \
     "${cactus_image_env_args[@]}" \
     "$CACTUS_ORCHESTRATOR_IMAGE"
 
@@ -137,6 +139,8 @@ podman run -d \
     -e CACTUS_ORCHESTRATOR_REQUEST_TIMEOUT_SPAWN="300" \
     -e BANNER_MESSAGE="${BANNER_MESSAGE}" \
     -e LOGIN_BANNER_MESSAGE="${LOGIN_BANNER_MESSAGE}" \
+    --log-driver=journald \
+    --log-opt=tag=cactus-ui \
     "$CACTUS_UI_IMAGE"
 
 # --------------------------------------------------------------------------- #
@@ -151,6 +155,8 @@ podman run -d \
     -p 127.0.0.1:5002:8080 \
     -e SERVER_URL="${CACTUS_CLIENT_NOTIFICATIONS_SERVER_URL}" \
     -e MOUNT_POINT="${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}" \
+    --log-driver=journald \
+    --log-opt=tag=cactus-client-notifications \
     "$CACTUS_CLIENT_NOTIFICATIONS_IMAGE"
 
 echo ""
