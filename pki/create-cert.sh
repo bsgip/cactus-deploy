@@ -88,7 +88,7 @@ usage() {
     echo "Will NOT replace existing certs (you will need to manually delete those to force a refresh)"
     echo ""
     echo "PROFILE      = Mandatory hierarchy type:"
-    echo "                 device     -> SERCA -> MCA          -> MICA           -> device End-Entity"
+    echo "                 device     -> SERCA -> MCA           -> MICA           -> device End-Entity"
     echo "                 dnsp       -> SERCA -> Services PCA  -> DNSP ICA       -> services End-Entity"
     echo "                 aggregator -> SERCA -> Services PCA  -> Aggregator ICA -> services End-Entity"
     echo "SERCA_ID     = Mandatory unique id of the root SERCA (also the folder name)"

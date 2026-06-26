@@ -40,9 +40,7 @@ DER clients (TLS 1.2 / AES-128-CCM8) via subdomain (eg https://run-123.cactus.ho
                         ├── runner          ← sole ingress: the only member bound to 0.0.0.0:8080
                         ├── envoy           ← 127.0.0.1:8000 (the runner proxies device traffic here)
                         ├── envoy-admin     ← 127.0.0.1:8001
-                        ├── postgres        ← 127.0.0.1 (listen_addresses=localhost)
-                        ├── taskiq-worker   ← notification transmit (no inbound listener)
-                        └── rabbitmq        ← in-pod broker
+                        └── postgres        ← 127.0.0.1 (listen_addresses=localhost)
 ```
 
 Teststacks are created and destroyed at runtime by `cactus-orchestrator` via the Podman API socket.

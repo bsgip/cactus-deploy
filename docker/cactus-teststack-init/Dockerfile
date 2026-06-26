@@ -43,8 +43,6 @@ PG_BIN="$(ls -d /usr/lib/postgresql/*/bin | head -n1)"
 export PATH="$PG_BIN:$PATH"
 PGDATA=/tmp/pgdata
 
-# Postgres won't run as root, so the server is driven as the 'postgres' system
-# user. Trust auth keeps this ephemeral, build-only DB password-free.
 install -d -o postgres -g postgres "$PGDATA" /var/run/postgresql
 su postgres -c "initdb -D '$PGDATA' -U postgres --auth=trust --encoding=UTF8 >/dev/null"
 su postgres -c "pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432' -w start"
@@ -56,16 +54,11 @@ psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE envoy;"
 DATABASE_URL="postgresql+asyncpg://postgres@127.0.0.1:5432/envoy" \
     alembic upgrade head
 
-# Snapshot the schema -> migrate.sql. --no-owner/--no-privileges keeps it
-# portable to whatever role the deployment's DB uses.
-pg_dump -h 127.0.0.1 -U postgres --schema-only --no-owner --no-privileges envoy \
-    > /app/migrate.sql
-
-# --schema-only omits table data, but the single alembic_version row records the
-# head revision and must be preserved (the final stage tails migrate.sql for it).
-# Appended last so it remains the final statement in the file.
-pg_dump -h 127.0.0.1 -U postgres --data-only --no-owner --no-privileges \
-    --table=alembic_version envoy >> /app/migrate.sql
+# Snapshot the migrated DB as a custom-format archive (-Fc). It's a *full* dump,
+# but after a from-empty migration the only row anywhere is alembic_version's head
+# revision, so the archive is effectively "schema + revision marker".
+pg_dump -h 127.0.0.1 -U postgres -Fc --no-owner --no-privileges envoy \
+    -f /app/migrate.dump
 
 su postgres -c "pg_ctl -D '$PGDATA' -w stop"
 EOF
@@ -77,8 +70,11 @@ ENV MIGRATION_SENTINEL=""
 
 RUN apk add --no-cache inotify-tools bash postgresql-client
 
-# Envoy migrations sql, tail it for current alembic revision
-COPY --from=builder /app/migrate.sql /migrate.sql
+# Flattened schema as a custom-format pg_dump archive; apply with `pg_restore -j`
+# (see entrypoint). Binary archive, so it can't be tailed for the revision; read
+# the embedded alembic head with:
+#   pg_restore --data-only --table=alembic_version -f - /migrate.dump
+COPY --from=builder /app/migrate.dump /migrate.dump
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

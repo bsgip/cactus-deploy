@@ -53,6 +53,7 @@ else
     mkdir -p "${HOME_DIR}"
     chown "${USER_NAME}:${GROUP_NAME}" "${HOME_DIR}"
     chmod 750 "${HOME_DIR}"
+    usermod -aG systemd-journal "${USER_NAME}"
 fi
 
 # --------------------------------------------------------------------------- #
