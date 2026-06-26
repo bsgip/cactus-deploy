@@ -9,12 +9,12 @@ fi
 
 echo "Waiting for db to be ready..."
 until psql ${ENVOY_DATABASE_URL} -c "SELECT 1;" >/dev/null 2>&1; do
-  sleep 0.3
+  sleep 0.1
 done
 
 set -e
 
-echo "Running migrations..."
+echo "Running migrations - Using "$(nproc)" processes..."
 pg_restore -d "${ENVOY_DATABASE_URL}" -j "$(nproc)" --no-owner --exit-on-error /migrate.dump
 
 if [ -n "$MIGRATION_SENTINEL" ]; then
