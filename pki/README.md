@@ -49,8 +49,7 @@ presents the envoy EE with the third. **Do NOT copy the SERCA / MCA / PCA / DNSP
 the orchestrator host (least privilege — see `docs/certificate-design.md` §7).
 
 ```bash
-install -d -m 750 /etc/cactus/pki/cactus-chain /etc/cactus/pki/aggregator-chain \
-                  /etc/cactus/pki/dnsp-chain   /etc/cactus/pki/dnsp-ee
+install -d -m 750 /etc/cactus/pki/cactus-chain /etc/cactus/pki/aggregator-chain /etc/cactus/pki/dnsp-ee
 
 # SERCA (public cert only — trust anchor)
 cp serca/serca.cert.pem          /etc/cactus/pki/serca.cert.pem
@@ -65,12 +64,10 @@ cp aggregator-chain/pca.cert.pem /etc/cactus/pki/aggregator-chain/pca.cert.pem
 cp aggregator-chain/ica.cert.pem /etc/cactus/pki/aggregator-chain/ica.cert.pem
 cp aggregator-chain/ica.key.pem  /etc/cactus/pki/aggregator-chain/ica.key.pem
 
-# DNSP chain (PCA + ICA public certs only — no keys; used for the authority bundle)
-cp dnsp-chain/pca.cert.pem       /etc/cactus/pki/dnsp-chain/pca.cert.pem
-cp dnsp-chain/ica.cert.pem       /etc/cactus/pki/dnsp-chain/ica.cert.pem
-
-# envoy (DNSP) EE — the notification mTLS identity (single EE cert + key, NOT the fullchain)
-cp envoy/envoy.cert.pem          /etc/cactus/pki/dnsp-ee/envoy.cert.pem
+# envoy (DNSP) EE — the notification mTLS identity: the pre-assembled fullchain (EE + DNSP ICA + PCA)
+# plus the EE key. The fullchain already carries the intermediates, so the separate DNSP PCA/ICA certs
+# are not needed on the orchestrator host.
+cp envoy/envoy.fullchain.pem     /etc/cactus/pki/dnsp-ee/envoy.fullchain.pem
 cp envoy/envoy.key.pem           /etc/cactus/pki/dnsp-ee/envoy.key.pem
 ```
 
@@ -81,12 +78,12 @@ weaker (`setup.sh` creates `/etc/cactus` owned by that group):
 chgrp -R cactus /etc/cactus/pki
 find /etc/cactus/pki -type d -exec chmod 750 {} +
 find /etc/cactus/pki -name '*.key.pem' -exec chmod 640 {} +
-find /etc/cactus/pki -name '*.cert.pem' -exec chmod 644 {} +
+find /etc/cactus/pki \( -name '*.cert.pem' -o -name '*.fullchain.pem' \) -exec chmod 644 {} +
 ```
 
-> `CERT_ENVOY_EE_CRT_PATH` must point at the **single EE cert** (`envoy.cert.pem`), not the
-> fullchain — the orchestrator concatenates the DNSP ICA + PCA itself when building the
-> `GET /certificate/authority` bundle.
+> `CERT_ENVOY_EE_FULLCHAIN_PATH` points at the pre-assembled `envoy.fullchain.pem` (EE + DNSP ICA + PCA,
+> excluding SERCA). The orchestrator stages it for notification mTLS and serves it verbatim in the
+> `GET /certificate/authority` bundle, so it no longer needs the separate DNSP PCA/ICA certs.
 
 ## 3. nginx edge cert (separate)
 
