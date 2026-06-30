@@ -95,9 +95,16 @@ podman run -d \
     --group-add "$(getent group cactus | cut -d: -f3)" \
     -v /run/podman/podman.sock:/run/podman/podman.sock:z \
     -v "${CERT_SERCA_PATH}:${CERT_SERCA_PATH}:ro,z" \
-    -v "${CERT_MCA_PATH}:${CERT_MCA_PATH}:ro,z" \
-    -v "${CERT_MICA_CRT_PATH}:${CERT_MICA_CRT_PATH}:ro,z" \
-    -v "${CERT_MICA_KEY_PATH}:${CERT_MICA_KEY_PATH}:ro,z" \
+    -v "${CERT_DEVICE_MCA_PATH}:${CERT_DEVICE_MCA_PATH}:ro,z" \
+    -v "${CERT_DEVICE_MICA_CRT_PATH}:${CERT_DEVICE_MICA_CRT_PATH}:ro,z" \
+    -v "${CERT_DEVICE_MICA_KEY_PATH}:${CERT_DEVICE_MICA_KEY_PATH}:ro,z" \
+    -v "${CERT_AGG_PCA_PATH}:${CERT_AGG_PCA_PATH}:ro,z" \
+    -v "${CERT_AGG_ICA_CRT_PATH}:${CERT_AGG_ICA_CRT_PATH}:ro,z" \
+    -v "${CERT_AGG_ICA_KEY_PATH}:${CERT_AGG_ICA_KEY_PATH}:ro,z" \
+    -v "${CERT_ENVOY_PCA_PATH}:${CERT_ENVOY_PCA_PATH}:ro,z" \
+    -v "${CERT_ENVOY_ICA_PATH}:${CERT_ENVOY_ICA_PATH}:ro,z" \
+    -v "${CERT_ENVOY_EE_CRT_PATH}:${CERT_ENVOY_EE_CRT_PATH}:ro,z" \
+    -v "${CERT_ENVOY_EE_KEY_PATH}:${CERT_ENVOY_EE_KEY_PATH}:ro,z" \
     -e ORCHESTRATOR_DATABASE_URL="${ORCHESTRATOR_DATABASE_URL}" \
     -e CACTUS_FQDN="${CACTUS_FQDN}" \
     -e ENVOY_PREFIX="${ENVOY_PREFIX}" \
@@ -109,9 +116,16 @@ podman run -d \
     -e PODMAN_NETWORK="${PODMAN_NETWORK}" \
     -e PODMAN_RUNNER_PORT="${PODMAN_RUNNER_PORT}" \
     -e CERT_SERCA_PATH="${CERT_SERCA_PATH}" \
-    -e CERT_MCA_PATH="${CERT_MCA_PATH}" \
-    -e CERT_MICA_CRT_PATH="${CERT_MICA_CRT_PATH}" \
-    -e CERT_MICA_KEY_PATH="${CERT_MICA_KEY_PATH}" \
+    -e CERT_DEVICE_MCA_PATH="${CERT_DEVICE_MCA_PATH}" \
+    -e CERT_DEVICE_MICA_CRT_PATH="${CERT_DEVICE_MICA_CRT_PATH}" \
+    -e CERT_DEVICE_MICA_KEY_PATH="${CERT_DEVICE_MICA_KEY_PATH}" \
+    -e CERT_AGG_PCA_PATH="${CERT_AGG_PCA_PATH}" \
+    -e CERT_AGG_ICA_CRT_PATH="${CERT_AGG_ICA_CRT_PATH}" \
+    -e CERT_AGG_ICA_KEY_PATH="${CERT_AGG_ICA_KEY_PATH}" \
+    -e CERT_ENVOY_PCA_PATH="${CERT_ENVOY_PCA_PATH}" \
+    -e CERT_ENVOY_ICA_PATH="${CERT_ENVOY_ICA_PATH}" \
+    -e CERT_ENVOY_EE_CRT_PATH="${CERT_ENVOY_EE_CRT_PATH}" \
+    -e CERT_ENVOY_EE_KEY_PATH="${CERT_ENVOY_EE_KEY_PATH}" \
     --log-driver=journald \
     --log-opt=tag=cactus-orchestrator \
     "${cactus_image_env_args[@]}" \
