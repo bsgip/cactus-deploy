@@ -1,0 +1,25 @@
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name __SERVER_NAME__;
+
+    # Server identity presented to the connecting client
+    ssl_certificate     /etc/nginx/certs/server.crt;   # leaf + intermediates (fullchain.pem)
+    ssl_certificate_key /etc/nginx/certs/server.key;   # extracted from certificate.pfx
+
+    # Trust store used to validate the client's presented certificate
+    ssl_client_certificate /etc/nginx/certs/client-ca.pem; # intermediates from utility-server-fullchain.pem + serca.pem
+    ssl_verify_client on;
+    ssl_verify_depth 3;
+
+    location /endpoint {
+        if ($request_method !~ ^(POST)$) {
+            return 405;
+        }
+        return 200 "ok";
+    }
+
+    location / {
+        return 404;
+    }
+}
