@@ -49,12 +49,13 @@ else
         --gid "${GROUP_NAME}" \
         --shell /bin/bash \
         "${USER_NAME}"
-
-    mkdir -p "${HOME_DIR}"
-    chown "${USER_NAME}:${GROUP_NAME}" "${HOME_DIR}"
-    chmod 750 "${HOME_DIR}"
-    usermod -aG systemd-journal "${USER_NAME}"
 fi
+
+# Re-assert every run so a pre-existing user still gets these.
+mkdir -p "${HOME_DIR}"
+chown "${USER_NAME}:${GROUP_NAME}" "${HOME_DIR}"
+chmod 750 "${HOME_DIR}"
+usermod -aG systemd-journal "${USER_NAME}"
 
 # --------------------------------------------------------------------------- #
 # Podman                                                                      #
@@ -118,21 +119,26 @@ echo "==> Starting Traefik..."
 # Routes are discovered from container labels on cactus-net. Each teststack's runner carries the
 # PathPrefix router plus a per-stack StripPrefix middleware, so teststack routing is created
 # dynamically as the orchestrator spawns runners — no static Traefik config needed here.
+#
+# Skip if already running so re-runs don't drop in-flight teststack routing (podman rm -f traefik to refresh).
 TRAEFIK_IMAGE="docker.io/library/traefik:v3"
-podman image pull "$TRAEFIK_IMAGE"
-podman rm -f traefik 2>/dev/null || true
-podman run -d \
-    --name traefik \
-    --restart always \
-    --network cactus-net \
-    -v /run/podman/podman.sock:/var/run/docker.sock:z \
-    -p 127.0.0.1:5001:80 \
-    "$TRAEFIK_IMAGE" \
-        --providers.docker=true \
-        --providers.docker.endpoint=unix:///var/run/docker.sock \
-        --providers.docker.exposedbydefault=false \
-        --providers.docker.network=cactus-net \
-        --entrypoints.web.address=:80
+if podman container exists traefik; then
+    echo "    traefik already exists, skipping (podman rm -f traefik to force a refresh)."
+else
+    podman image pull "$TRAEFIK_IMAGE"
+    podman run -d \
+        --name traefik \
+        --restart always \
+        --network cactus-net \
+        -v /run/podman/podman.sock:/var/run/docker.sock:z \
+        -p 127.0.0.1:5001:80 \
+        "$TRAEFIK_IMAGE" \
+            --providers.docker=true \
+            --providers.docker.endpoint=unix:///var/run/docker.sock \
+            --providers.docker.exposedbydefault=false \
+            --providers.docker.network=cactus-net \
+            --entrypoints.web.address=:80
+fi
 
 # --------------------------------------------------------------------------- #
 # Certificate directories                                                     #
