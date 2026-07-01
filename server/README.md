@@ -126,9 +126,6 @@ sudo ./stage-certs.sh . ../server/cactus.env
 envoy EE fullchain + key — never the SERCA/MCA/PCA/DNSP-ICA private keys — and populates every
 orchestrator `CERT_*_PATH` in `cactus.env`.
 
-The nginx **device-facing server cert** (`CERT_SERVER_CERT_FULLCHAIN_PATH` / `CERT_SERVER_KEY_PATH`) is a
-separate TLS identity, not part of this hierarchy — see the nginx notes in §4.
-
 ---
 
 ## (4) Infrastructure setup
@@ -150,7 +147,7 @@ setup:
 
 1. Install your custom nginx build and confirm the cipher: `openssl ciphers | grep -c CCM8` (must be ≥1).
 2. Place the device-facing TLS material at the `cactus.env` paths the config renders:
-   `CERT_SERVER_CERT_FULLCHAIN_PATH`, `CERT_SERVER_KEY_PATH`, and the `CERT_SERCA_PATH` trust anchor.
+   `CERT_ENVOY_EE_FULLCHAIN_PATH`, `CERT_ENVOY_EE_KEY_PATH`, and the `CERT_SERCA_PATH` trust anchor.
 3. Render the config template into your nginx layout. A from-source build has no Debian
    `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
    ```bash

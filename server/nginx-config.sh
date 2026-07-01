@@ -27,8 +27,8 @@ ${CACTUS_FQDN}
 ${CACTUS_FQDN_REGEX}
 ${CACTUS_CLIENT_NOTIFICATIONS_MOUNT_POINT}
 ${ENVOY_PREFIX}
-${CERT_SERVER_CERT_FULLCHAIN_PATH}
-${CERT_SERVER_KEY_PATH}
+${CERT_ENVOY_EE_FULLCHAIN_PATH}
+${CERT_ENVOY_EE_KEY_PATH}
 ${CERT_SERCA_PATH}
 EOF
 )
@@ -84,9 +84,9 @@ server {
     # a.b.${CACTUS_FQDN}, etc.) but NOT ${CACTUS_FQDN} itself.
     server_name ~^.+\.${CACTUS_FQDN_REGEX}$;
 
-    # Server certificate (from pki/create-cert.sh — server-chain output, fullchain PEM)
-    ssl_certificate     ${CERT_SERVER_CERT_FULLCHAIN_PATH};
-    ssl_certificate_key ${CERT_SERVER_KEY_PATH};
+    # Server certificate (from pki/create-cert.sh — dnsp-chain output, fullchain PEM)
+    ssl_certificate     ${CERT_ENVOY_EE_FULLCHAIN_PATH};
+    ssl_certificate_key ${CERT_ENVOY_EE_KEY_PATH};
 
     # TLS 1.2 + CCM8 supported (last) for 2030.5 clients, not enforced.
     ssl_protocols TLSv1.2;

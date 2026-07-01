@@ -69,5 +69,5 @@ with the full list. Re-run any time to restage rotated certs.
 ## 3. nginx edge cert (separate)
 
 The public-facing utility-server TLS used by nginx (`CERT_SERVER_CERT_FULLCHAIN_PATH` /
-`CERT_SERVER_KEY_PATH`) and the orchestration-domain TLS (Let's Encrypt) are **not** part of the
+`CERT_ENVOY_EE_KEY_PATH`) and the orchestration-domain TLS (Let's Encrypt) are **not** part of the
 SERCA hierarchy above — see `server/nginx-config.sh`.

@@ -73,4 +73,3 @@ for row in "${MAPPINGS[@]}"; do
 done
 
 echo "==> Done. Staged ${#MAPPINGS[@]} files (owner ${USER_NAME}:${GROUP_NAME})."
-echo "    nginx edge certs (CERT_SERVER_*) are separate - see pki/README §3."
