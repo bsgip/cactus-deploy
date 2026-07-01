@@ -27,7 +27,7 @@ so the two can't drift (or set `CACTUS_FQDN` by hand if generating on an offline
 source ../server/cactus.env   # provides CACTUS_FQDN
 
 # Device chain:      SERCA -> MCA -> MICA            (orchestrator mints device EEs)
-./create-cert.sh device     serca 1 cactus-chain     1
+./create-cert.sh device     serca 1 device-chain     1
 
 # Aggregator chain:  SERCA -> Services PCA -> Agg ICA (orchestrator mints aggregator EEs)
 ./create-cert.sh aggregator serca 1 aggregator-chain 2
@@ -40,7 +40,7 @@ Outputs (note device labels are upper-case `MCA`/`MICA`; services labels are low
 
 ```
 serca/serca.cert.pem  serca/serca.key.pem
-cactus-chain/MCA.cert.pem   cactus-chain/MICA.cert.pem   cactus-chain/MICA.key.pem
+device-chain/MCA.cert.pem   device-chain/MICA.cert.pem   device-chain/MICA.key.pem
 aggregator-chain/pca.cert.pem   aggregator-chain/ica.cert.pem   aggregator-chain/ica.key.pem
 dnsp-chain/pca.cert.pem   dnsp-chain/ica.cert.pem   dnsp-chain/ica.key.pem
 envoy/envoy.cert.pem   envoy/envoy.key.pem   envoy/envoy.fullchain.pem

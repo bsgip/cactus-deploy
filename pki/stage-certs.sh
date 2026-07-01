@@ -2,7 +2,7 @@
 # Stage the create-cert.sh PKI artefacts into the host paths the orchestrator reads (the CERT_* paths
 # in cactus.env), with cactus:cactus ownership and least-privilege modes. Copies ONLY what the
 # orchestrator needs - never the SERCA / MCA / PCA / DNSP-ICA private keys.
-# Assumes create-cert.sh was run per pki/README §1 (chain ids cactus-chain / aggregator-chain / envoy).
+# Assumes create-cert.sh was run per pki/README §1 (chain ids device-chain / aggregator-chain / envoy).
 # Run as root.
 # Usage: sudo ./stage-certs.sh <create-cert-output-dir> [cactus.env]
 
@@ -39,9 +39,9 @@ source "$ENV_FILE"
 # the SERCA / MCA / PCA / DNSP-ICA private keys are deliberately absent.
 MAPPINGS=(
     "serca/serca.cert.pem          CERT_SERCA_PATH              644"
-    "cactus-chain/MCA.cert.pem     CERT_DEVICE_MCA_PATH         644"
-    "cactus-chain/MICA.cert.pem    CERT_DEVICE_MICA_CRT_PATH    644"
-    "cactus-chain/MICA.key.pem     CERT_DEVICE_MICA_KEY_PATH    640"
+    "device-chain/MCA.cert.pem     CERT_DEVICE_MCA_PATH         644"
+    "device-chain/MICA.cert.pem    CERT_DEVICE_MICA_CRT_PATH    644"
+    "device-chain/MICA.key.pem     CERT_DEVICE_MICA_KEY_PATH    640"
     "aggregator-chain/pca.cert.pem CERT_AGG_PCA_PATH            644"
     "aggregator-chain/ica.cert.pem CERT_AGG_ICA_CRT_PATH        644"
     "aggregator-chain/ica.key.pem  CERT_AGG_ICA_KEY_PATH        640"
