@@ -42,44 +42,19 @@ envoy/envoy.cert.pem   envoy/envoy.key.pem   envoy/envoy.fullchain.pem
 
 ## 2. Stage into `/etc/cactus/pki/` (the paths in `server/cactus.env`)
 
-Copy **only what the orchestrator needs** to the host paths referenced by the `CERT_*` vars in
-`server/sample.cactus.env`. Of the private keys, the host needs **only** the MICA key, the aggregator
-ICA key, and the envoy EE key — the orchestrator signs device/aggregator leaves with the first two and
-presents the envoy EE with the third. **Do NOT copy the SERCA / MCA / PCA / DNSP-ICA private keys** to
-the orchestrator host (least privilege — see `docs/certificate-design.md` §7).
+`stage-certs.sh` copies **only what the orchestrator needs** to the host paths referenced by the
+`CERT_*` vars in `cactus.env`, with `cactus:cactus` ownership and least-privilege modes (keys 640,
+certs 644, dirs 750). Of the private keys the host gets **only** the MICA, aggregator ICA, and envoy EE
+keys; the **SERCA / MCA / PCA / DNSP-ICA private keys are never copied** (least privilege — see
+`docs/certificate-design.md` §7).
 
 ```bash
-install -d -m 750 /etc/cactus/pki/cactus-chain /etc/cactus/pki/aggregator-chain /etc/cactus/pki/dnsp-ee
-
-# SERCA (public cert only — trust anchor)
-cp serca/serca.cert.pem          /etc/cactus/pki/serca.cert.pem
-
-# Device chain (MCA public cert; MICA cert + signing key)
-cp cactus-chain/MCA.cert.pem     /etc/cactus/pki/cactus-chain/mca.cert.pem
-cp cactus-chain/MICA.cert.pem    /etc/cactus/pki/cactus-chain/mica.cert.pem
-cp cactus-chain/MICA.key.pem     /etc/cactus/pki/cactus-chain/mica.key.pem
-
-# Aggregator chain (PCA public cert; ICA cert + signing key)
-cp aggregator-chain/pca.cert.pem /etc/cactus/pki/aggregator-chain/pca.cert.pem
-cp aggregator-chain/ica.cert.pem /etc/cactus/pki/aggregator-chain/ica.cert.pem
-cp aggregator-chain/ica.key.pem  /etc/cactus/pki/aggregator-chain/ica.key.pem
-
-# envoy (DNSP) EE — the notification mTLS identity: the pre-assembled fullchain (EE + DNSP ICA + PCA)
-# plus the EE key. The fullchain already carries the intermediates, so the separate DNSP PCA/ICA certs
-# are not needed on the orchestrator host.
-cp envoy/envoy.fullchain.pem     /etc/cactus/pki/dnsp-ee/envoy.fullchain.pem
-cp envoy/envoy.key.pem           /etc/cactus/pki/dnsp-ee/envoy.key.pem
+# <create-cert-output-dir> is where you ran the commands in §1 (this dir if run from here)
+sudo ./stage-certs.sh . ../server/cactus.env
 ```
 
-Then lock down ownership/modes so the orchestrator's `cactus` group can read the keys but nothing
-weaker (`setup.sh` creates `/etc/cactus` owned by that group):
-
-```bash
-chgrp -R cactus /etc/cactus/pki
-find /etc/cactus/pki -type d -exec chmod 750 {} +
-find /etc/cactus/pki -name '*.key.pem' -exec chmod 640 {} +
-find /etc/cactus/pki \( -name '*.cert.pem' -o -name '*.fullchain.pem' \) -exec chmod 644 {} +
-```
+It validates up front and refuses to half-stage: a missing source file or an unset `CERT_*` var aborts
+with the full list. Re-run any time to restage rotated certs.
 
 > `CERT_ENVOY_EE_FULLCHAIN_PATH` points at the pre-assembled `envoy.fullchain.pem` (EE + DNSP ICA + PCA,
 > excluding SERCA). The orchestrator stages it for notification mTLS and serves it verbatim in the
