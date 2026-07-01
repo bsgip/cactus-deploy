@@ -108,51 +108,26 @@ CACTUS_IMAGE__V1_3__RUNNER = "cactusimageregistry.azurecr.io/cactus-runner:158-v
 
 ---
 
-## (3) PKI creation
+## (3) PKI creation and staging
 
-The `../pki/create-cert.sh` script generates the full IEEE 2030.5 certificate chain.
+The full certificate hierarchy (one SERCA root + the device, aggregator, and DNSP-envoy chains) and how
+to stage the orchestrator's subset are documented in **`../pki/README.md`** — the single source of truth.
+In short:
 
 ```bash
 cd ../pki
-
-# Server signing chain (SAN must match TEST_EXECUTION_FQDN)
-./create-cert.sh cactus 1 server-chain 1 envoy.example.com 1
-
-# Cactus client signing chain (used to sign DER client certificates)
-./create-cert.sh cactus 1 cactus-chain 2
+# 1. Generate the chains (pki/README §1) — do this on an offline/scratch host: it mints the CA private
+#    keys, which must never live on the orchestrator host.
+# 2. Stage only the least-privilege subset into the cactus.env CERT_* paths (cactus:cactus, right modes):
+sudo ./stage-certs.sh . ../server/cactus.env
 ```
 
-This produces:
-- `cactus/`         — SERCA root CA certificate
-- `server-chain/`   — MCA/MICA for signing the utility server TLS certificate
-- `cactus-chain/`   — MCA/MICA for signing DER client certificates
-- `envoy.example.com/` — signed server certificate + full chain
+`stage-certs.sh` copies the SERCA public cert, the MICA + aggregator-ICA signing keys/certs, and the
+envoy EE fullchain + key — never the SERCA/MCA/PCA/DNSP-ICA private keys — and populates every
+orchestrator `CERT_*_PATH` in `cactus.env`.
 
-Copy the artefacts to the paths configured in `cactus.env`:
-
-```bash
-mkdir -p /etc/cactus/pki/cactus-chain
-chmod 750 /etc/cactus/pki
-cp cactus/serca.cert.pem                          /etc/cactus/pki/serca.cert.pem
-cp cactus-chain/mca.cert.pem                      /etc/cactus/pki/cactus-chain/mca.cert.pem
-cp cactus-chain/mica.cert.pem                     /etc/cactus/pki/cactus-chain/mica.cert.pem
-cp cactus-chain/mica.key.pem                      /etc/cactus/pki/cactus-chain/mica.key.pem
-
-# The orchestrator container runs as non-root 'appuser' with supplementary group 'cactus'
-# (--group-add in update.sh). It reads the MICA signing key at cert-generation time, so the
-# PKI must be group-cactus readable: dirs traversable (750), key/cert files readable (640).
-# Without this, certificate generation fails with PermissionError on mica.key.pem.
-chgrp -R cactus /etc/cactus/pki
-find /etc/cactus/pki -type d -exec chmod 750 {} \;
-find /etc/cactus/pki -type f -exec chmod 640 {} \;
-
-# nginx server certificate
-mkdir -p /etc/nginx/certs
-cp envoy.example.com/envoy.example.com.fullchain.pem  /etc/nginx/certs/server.fullchain.pem
-cp envoy.example.com/envoy.example.com.key.pem        /etc/nginx/certs/server.key.pem
-cp cactus/serca.cert.pem                              /etc/nginx/certs/serca.cert.pem
-chmod 600 /etc/nginx/certs/server.key.pem
-```
+The nginx **device-facing server cert** (`CERT_SERVER_CERT_FULLCHAIN_PATH` / `CERT_SERVER_KEY_PATH`) is a
+separate TLS identity, not part of this hierarchy — see the nginx notes in §4.
 
 ---
 
@@ -174,8 +149,8 @@ The device-facing vhost requires AES-128-CCM8, which stock distro nginx cannot p
 setup:
 
 1. Install your custom nginx build and confirm the cipher: `openssl ciphers | grep -c CCM8` (must be ≥1).
-2. Place the device-facing TLS material at `/etc/nginx/certs/`: `server.fullchain.pem`, `server.key.pem`,
-   and `serca.cert.pem` (from §3).
+2. Place the device-facing TLS material at the `cactus.env` paths the config renders:
+   `CERT_SERVER_CERT_FULLCHAIN_PATH`, `CERT_SERVER_KEY_PATH`, and the `CERT_SERCA_PATH` trust anchor.
 3. Render the config template into your nginx layout. A from-source build has no Debian
    `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
    ```bash
@@ -337,5 +312,5 @@ podman exec envoy-svc-<id>-runner sh -c 'ss -ltn 2>/dev/null || netstat -ltn'
 **Certificate errors on test-execution domain:**
 ```bash
 nginx -T | grep ssl_client_certificate
-openssl verify -CAfile /etc/nginx/certs/serca.cert.pem <device-cert.pem>
+openssl verify -CAfile "$CERT_SERCA_PATH" <device-cert.pem>   # e.g. /etc/cactus/pki/serca.cert.pem
 ```

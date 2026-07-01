@@ -17,9 +17,15 @@ not regenerate) the SERCA, so all three chains below chain to the same root. Out
 
 Run from this directory. The device and aggregator chains stop at the CA level — the orchestrator
 mints their End-Entity leaves at runtime. The DNSP chain additionally generates the **static wildcard
-envoy EE** that envoy presents on outbound notifications (replace the FQDN with your `CACTUS_FQDN`).
+envoy EE** that envoy presents on outbound notifications.
+
+Its wildcard SAN must equal `*.${CACTUS_FQDN}` — the same FQDN that drives nginx's `server_name` — so a
+single static cert covers every per-pod hostname. Derive it from `cactus.env` rather than hand-typing,
+so the two can't drift (or set `CACTUS_FQDN` by hand if generating on an offline host):
 
 ```bash
+source ../server/cactus.env   # provides CACTUS_FQDN
+
 # Device chain:      SERCA -> MCA -> MICA            (orchestrator mints device EEs)
 ./create-cert.sh device     serca 1 cactus-chain     1
 
@@ -27,7 +33,7 @@ envoy EE** that envoy presents on outbound notifications (replace the FQDN with 
 ./create-cert.sh aggregator serca 1 aggregator-chain 2
 
 # DNSP chain + static wildcard envoy EE: SERCA -> Services PCA -> DNSP ICA -> envoy EE
-./create-cert.sh dnsp       serca 1 dnsp-chain       3 envoy 1 '*.cactus.example.com'
+./create-cert.sh dnsp       serca 1 dnsp-chain       3 envoy 1 "*.${CACTUS_FQDN}"
 ```
 
 Outputs (note device labels are upper-case `MCA`/`MICA`; services labels are lower-case `pca`/`ica`):
