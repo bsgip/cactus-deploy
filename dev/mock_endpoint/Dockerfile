@@ -58,6 +58,6 @@ COPY --from=certbuilder /build/server.crt     /etc/nginx/certs/server.crt
 COPY --from=certbuilder /build/server.key     /etc/nginx/certs/server.key
 COPY --from=certbuilder /build/client-ca.pem  /etc/nginx/certs/client-ca.pem
 
-EXPOSE 8443
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

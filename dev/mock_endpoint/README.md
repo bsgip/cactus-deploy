@@ -26,5 +26,5 @@ podman build -t mtls-mock-webhook .
 ## Run
 
 ```bash
-podman run --rm -p 8443:443 mtls-mock-webhook
+podman run --rm -p 8080:8080 mtls-mock-webhook
 ```
