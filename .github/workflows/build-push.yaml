@@ -99,28 +99,28 @@ jobs:
               "BUILD_DIR": "./docker/envoy"
             },
             {
-              "IMAGE_NAME": "cactus-teststack-init",
+              "IMAGE_NAME": "cactus-db",
               "VERSION_NAME": "ENVOY_VERSION",
               "VERSION_VALUE": "${V12_ENVOY_VERSION}",
               "VERSION_SUFFIX": "-v12",
               "GITHUB_ORG": "bsgip",
-              "BUILD_DIR": "./docker/cactus-teststack-init"
+              "BUILD_DIR": "./docker/cactus-db"
             },
             {
-              "IMAGE_NAME": "cactus-teststack-init",
+              "IMAGE_NAME": "cactus-db",
               "VERSION_NAME": "ENVOY_VERSION",
               "VERSION_VALUE": "${V13_STORAGE_BETA_ENVOY_VERSION}",
               "VERSION_SUFFIX": "-v13-storage-beta",
               "GITHUB_ORG": "synergy-au",
-              "BUILD_DIR": "./docker/cactus-teststack-init"
+              "BUILD_DIR": "./docker/cactus-db"
             },
             {
-              "IMAGE_NAME": "cactus-teststack-init",
+              "IMAGE_NAME": "cactus-db",
               "VERSION_NAME": "ENVOY_VERSION",
               "VERSION_VALUE": "${V13_ENVOY_VERSION}",
               "VERSION_SUFFIX": "-v13",
               "GITHUB_ORG": "bsgip",
-              "BUILD_DIR": "./docker/cactus-teststack-init"
+              "BUILD_DIR": "./docker/cactus-db"
             }
            ]
           }

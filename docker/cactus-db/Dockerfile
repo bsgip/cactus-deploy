@@ -64,19 +64,38 @@ su postgres -c "pg_ctl -D '$PGDATA' -w stop"
 EOF
 
 # (2) Final stage
-FROM alpine:3.23
+FROM postgres:18-alpine
 
-ENV MIGRATION_SENTINEL=""
 
-RUN apk add --no-cache inotify-tools bash postgresql-client
+ARG POSTGRES_USER=envoy
+ARG POSTGRES_PASSWORD=envoy
+ARG POSTGRES_DB=envoy
 
-# Flattened schema as a custom-format pg_dump archive; apply with `pg_restore -j`
-# (see entrypoint). Binary archive, so it can't be tailed for the revision; read
-# the embedded alembic head with:
-#   pg_restore --data-only --table=alembic_version -f - /migrate.dump
-COPY --from=builder /app/migrate.dump /migrate.dump
+ENV PGDATA=/var/lib/postgresql/data \
+    POSTGRES_USER=${POSTGRES_USER} \
+    POSTGRES_DB=${POSTGRES_DB}
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY --from=builder /app/migrate.dump /tmp/migrate.dump
 
-ENTRYPOINT ["/entrypoint.sh"]
+RUN mkdir -p /var/run/postgresql "$PGDATA" && \
+    chown -R postgres:postgres /var/run/postgresql "$PGDATA"
+
+USER postgres
+
+# Init a real cluster, start it on a local socket only (no TCP),
+# create the db, restore the dump, then shut it down cleanly.
+RUN echo "$POSTGRES_PASSWORD" > /tmp/pwfile && \
+    initdb --username="$POSTGRES_USER" --pwfile=/tmp/pwfile --auth=scram-sha-256 -D "$PGDATA" --locale=C.UTF-8 && \
+    rm -f /tmp/pwfile && \
+    pg_ctl -D "$PGDATA" -o "-c listen_addresses='' -c unix_socket_directories=/var/run/postgresql" -w start && \
+    PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -h /var/run/postgresql -d postgres \
+        -c "CREATE DATABASE \"$POSTGRES_DB\";" && \
+    PGPASSWORD="$POSTGRES_PASSWORD" pg_restore --username "$POSTGRES_USER" --host /var/run/postgresql \
+        --dbname "$POSTGRES_DB" --no-owner --exit-on-error /tmp/migrate.dump && \
+    pg_ctl -D "$PGDATA" -m fast -w stop
+
+
+USER root
+RUN rm -f /tmp/migrate.dump
+
+EXPOSE 5432
