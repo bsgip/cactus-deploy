@@ -1,0 +1,61 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "filters": {
+        "exclude_health_checks": {
+            "()": "envoy.logfilters.ExcludeMessageFilter",
+            "exclude_str": "/status/version"
+        }
+    },
+    "formatters": {
+        "jsonl": {
+            "class": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "json_ensure_ascii": false
+        },
+        "standard": {
+            "format": "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+        }
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "stream": "ext://sys.stdout"
+        },
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "stream": "ext://sys.stderr"
+        },
+        "sharefile": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "standard",
+            "filename": "/shared/envoy.notification.log",
+            "maxBytes": 10485760,
+            "backupCount": 5,
+            "encoding": "utf-8"
+        }
+    },
+    "loggers": {
+        "envoy": {
+            "level": "DEBUG",
+            "filters": [
+                "exclude_health_checks"
+            ],
+            "handlers": [
+                "stdout",
+                "sharefile"
+            ],
+            "propagate": false
+        },
+        "taskiq": {
+            "level": "INFO",
+            "handlers": [
+                "stdout",
+                "sharefile"
+            ],
+            "propagate": false
+        }
+    }
+}
