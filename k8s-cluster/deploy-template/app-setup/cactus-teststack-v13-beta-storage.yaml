@@ -104,6 +104,41 @@ spec:
             mountPath: /shared
 
       containers:
+        - name: rabbit-mq
+          image: rabbitmq:3-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "guest"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "guest"
+
+        - name: taskiq-worker
+          image: ${CACTUS_ENVOY_APP_IMAGE_V13_BETA_STORAGE}
+          command: ["taskiq", "worker", "--no-configure-logging", "envoy.notification.main:broker", "envoy.notification.task.check", "envoy.notification.task.transmit"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://test_user:test_pwd@localhost:5432/test_db"
+            - name: CERT_HEADER
+              value: "ssl-client-cert"
+            - name: ENABLE_NOTIFICATIONS
+              value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
+            - name: ALLOW_DEVICE_REGISTRATION
+              value: "True"
+            - name: LOG_CONFIG
+              value: logconf.notification.json
+            - name: NOTIFICATION_DISABLE_TLS_VERIFY
+              value: "True"
+            - name: NOTIFICATIONS_WITH_MTLS
+              value: "False"
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+
         - name: envoy
           image: ${CACTUS_ENVOY_APP_IMAGE_V13_BETA_STORAGE}
           ports:
@@ -126,6 +161,8 @@ spec:
               value: "ssl-client-cert"
             - name: ENABLE_NOTIFICATIONS
               value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
             - name: STATIC_REGISTRATION_PIN
@@ -156,6 +193,8 @@ spec:
               value: "ssl-client-cert"
             - name: ENABLE_NOTIFICATIONS
               value: "True"
+            - name: RABBIT_MQ_BROKER_URL
+              value: "amqp://guest:guest@localhost:5672"
             - name: ALLOW_DEVICE_REGISTRATION
               value: "True"
             - name: ADMIN_USERNAME
