@@ -57,7 +57,12 @@ other service binds `127.0.0.1` and so is unreachable from other teststacks on `
 Ubuntu 24.04.  `setup.sh` installs Podman and Traefik and pre-pulls images, but you must provide:
 
 - Static IP assigned and DNS records created for both `TEST_EXECUTION_FQDN` and `TEST_ORCHESTRATION_FQDN`.
-- External PostgreSQL instance reachable from this host (for the orchestrator database).
+- PostgreSQL instance reachable from this host (for the orchestrator database).
+   - If hosted locally - you will need to ensure that the `cactus-net` gateway IP is accepted by postgres.hba
+   - To discover: `podman network inspect cactus-net` - Look for `subnets.gateway` and `subnets.subnet` eg `10.89.0.0/24` and `10.89.0.1`
+   - Update `pg_hba.conf` with `host    all             all             10.89.0.1/24            scram-sha-256`
+   - Update `postgres.conf` with `listen_addresses = 'localhost,10.89.0.1'`
+   - Restart postgresql
 - Container registry credentials available if using a private registry.
 - A custom-compiled, CCM8-capable nginx (see the cipher note below) — `setup.sh` does **not** install or
   configure nginx; the TLS edge is hand-managed (see §4).
