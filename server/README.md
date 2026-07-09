@@ -113,7 +113,35 @@ CACTUS_IMAGE__V1_3__RUNNER = "cactusimageregistry.azurecr.io/cactus-runner:158-v
 
 ---
 
-## (3) PKI creation and staging
+## (3) Infrastructure setup
+
+Run the setup script once on a fresh host.  It installs Podman, enables the rootful socket, creates the
+`cactus-net` network, starts Traefik, creates `/etc/cactus/pki`, and pre-pulls all teststack images. It
+does **not** install or configure nginx and does **not** issue TLS certificates — the TLS edge is
+hand-managed (see below).
+
+```bash
+sudo ./setup.sh ./cactus.env
+```
+
+### Enable userns for teststack pods
+
+The orchestrator spawns every teststack pod with `userns=auto`, which requires the rootful user (`root`)
+to have a subordinate UID/GID range — without it **every spawn fails**. `setup.sh` does not set this; add
+it once on the host:
+
+```bash
+grep -q '^root:' /etc/subuid || echo 'root:100000:65536' | sudo tee -a /etc/subuid
+grep -q '^root:' /etc/subgid || echo 'root:100000:65536' | sudo tee -a /etc/subgid
+grep -q '^containers:' /etc/subuid || echo 'root:110000:65536' | sudo tee -a /etc/subuid
+grep -q '^containers:' /etc/subgid || echo 'root:110000:65536' | sudo tee -a /etc/subgid
+sudo podman system migrate
+```
+
+---
+
+
+## (4) PKI creation and staging
 
 The full certificate hierarchy (one SERCA root + the device, aggregator, and DNSP-envoy chains) and how
 to stage the orchestrator's subset are documented in **`../pki/README.md`** — the single source of truth.
@@ -133,18 +161,7 @@ orchestrator `CERT_*_PATH` in `cactus.env`.
 
 ---
 
-## (4) Infrastructure setup
-
-Run the setup script once on a fresh host.  It installs Podman, enables the rootful socket, creates the
-`cactus-net` network, starts Traefik, creates `/etc/cactus/pki`, and pre-pulls all teststack images. It
-does **not** install or configure nginx and does **not** issue TLS certificates — the TLS edge is
-hand-managed (see below).
-
-```bash
-sudo ./setup.sh ./cactus.env
-```
-
-### nginx / TLS edge (hand-managed)
+## (5) NGINX / TLS
 
 The device-facing vhost requires AES-128-CCM8, which stock distro nginx cannot provide, so nginx is
 **custom-compiled against a CCM-capable OpenSSL and installed out of band** — not by `setup.sh`. After
@@ -164,21 +181,8 @@ setup:
    distro nginx layout). Adjust the paths in the rendered config if you issue certs elsewhere.
 5. Validate and reload: `nginx -t && systemctl reload nginx` (or your build's equivalent).
 
-### Enable userns for teststack pods
 
-The orchestrator spawns every teststack pod with `userns=auto`, which requires the rootful user (`root`)
-to have a subordinate UID/GID range — without it **every spawn fails**. `setup.sh` does not set this; add
-it once on the host:
-
-```bash
-grep -q '^root:' /etc/subuid || echo 'root:100000:1048576' | sudo tee -a /etc/subuid
-grep -q '^root:' /etc/subgid || echo 'root:100000:1048576' | sudo tee -a /etc/subgid
-sudo podman system migrate
-```
-
----
-
-## (5) Database setup
+## (6) Database setup
 
 The orchestrator requires an external PostgreSQL instance.
 
@@ -196,7 +200,7 @@ The orchestrator requires an external PostgreSQL instance.
 
 ---
 
-## (6) Deploy application containers
+## (7) Deploy application containers
 
 ```bash
 sudo ./update.sh ./cactus.env
