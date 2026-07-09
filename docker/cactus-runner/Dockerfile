@@ -28,11 +28,25 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "gunicorn==26.0.0"
 
 # RUN stage
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-trixie
 
 # This postgresql-client version shouldn't be "behind" the postgres version in the k8s pod
-# eg: If the pod is running postgres:15, don't install postgresql-client-14
-RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client curl && rm -rf /var/lib/apt/lists/*
+# eg: If the pod is running postgres:18, don't install postgresql-client-17
+# NOTE: postgresql-client-18 is not yet in Debian trixie's default repos, so we
+# pull it from the official PostgreSQL APT (PGDG) repository instead.
+RUN apt-get update && apt-get install --no-install-recommends -y \
+        curl \
+        ca-certificates \
+        gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y postgresql-client-18 \
+    && apt-get purge -y --auto-remove gnupg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 RUN mkdir -p config/logging && mkdir /shared
@@ -46,6 +60,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HOST='0.0.0.0'
 ENV PORT='8080'
+ENV ENVOY_PROXY_PREFIX="/"
+ENV MOUNT_POINT="/"
 
 # run app - we can start immediately as the app health check will give us definite information about whether the underlying
 # services have started (or not)

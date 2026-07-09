@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local secrets / env — templates like sample.env stay tracked
+.env
+cactus.env
+*.pat
+
+# OS / editor cruft
+.DS_Store
