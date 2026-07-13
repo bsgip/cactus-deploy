@@ -126,17 +126,10 @@ sudo ./setup.sh ./cactus.env
 
 ### Enable userns for teststack pods
 
-The orchestrator spawns every teststack pod with `userns=auto`, which requires the rootful user (`root`)
-to have a subordinate UID/GID range — without it **every spawn fails**. `setup.sh` does not set this; add
-it once on the host:
-
-```bash
-grep -q '^root:' /etc/subuid || echo 'root:100000:65536' | sudo tee -a /etc/subuid
-grep -q '^root:' /etc/subgid || echo 'root:100000:65536' | sudo tee -a /etc/subgid
-grep -q '^containers:' /etc/subuid || echo 'root:110000:65536' | sudo tee -a /etc/subuid
-grep -q '^containers:' /etc/subgid || echo 'root:110000:65536' | sudo tee -a /etc/subgid
-sudo podman system migrate
-```
+The orchestrator spawns every teststack pod with `userns=auto`, which draws IDs from the user literally
+named `containers` (NOT `root`, NOT the `cactus` user) — without a subordinate UID/GID range for it,
+**every spawn fails**. `setup.sh` does not set this (see its step-4 output for the exact command and
+sizing rationale); run that once on the host, then `sudo podman system migrate`.
 
 ---
 
