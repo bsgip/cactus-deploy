@@ -27,6 +27,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-editable && \
     uv pip install "uvicorn==0.48.0"
 
+# Record the alembic head this image expects, so update.sh can refuse to deploy
+# against a database that hasn't had this migration applied yet.
+RUN uv run alembic heads | awk '{print $1}' > /app/ALEMBIC_HEAD && \
+    test "$(wc -l < /app/ALEMBIC_HEAD)" -eq 1
+
 # RUN stage
 FROM python:3.12-slim-bookworm
 
@@ -39,6 +44,7 @@ RUN chmod +x /entrypoint.sh
 RUN useradd -ms /bin/bash appuser
 
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appuser /app/ALEMBIC_HEAD /app/ALEMBIC_HEAD
 
 USER appuser
 
