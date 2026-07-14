@@ -98,6 +98,15 @@ fi
 if [[ "$socket_conf_changed" -eq 1 ]]; then
     systemctl daemon-reload
     systemctl restart podman.socket
+
+    # The restart above just replaced the socket inode, so any container with a bind mount
+    # of the old one (traefik) is now silently talking to a dead handle. It won't error, it'll
+    # just stop seeing container events forever. Force it to be recreated against the fresh
+    # socket further down instead of leaving it running on borrowed time.
+    if podman container exists traefik; then
+        echo "    podman.socket was replaced: removing traefik so it gets recreated against the fresh socket."
+        podman rm -f traefik
+    fi
 else
     echo "    Socket group config already current, skipping restart."
 fi
@@ -179,12 +188,14 @@ echo "     and render ../nginx/nginx.conf into its config (see note above). Issu
 echo "     the orchestration-domain cert (mechanism TBD), then reload nginx."
 echo "  4. Give the 'containers' user a subuid/subgid pool for userns=auto, then 'podman system migrate'."
 echo "     IMPORTANT: rootful userns=auto draws IDs from the user named 'containers' (NOT root, NOT the"
-echo "     cactus user). It carves ~65536 IDs per teststack container, so the pool must be large"
-echo "     (~10M = ~160 container-slices) AND start clear of existing /etc/sub{u,g}id entries"
-echo "     (overlapping ranges break userns isolation). Pick a start above all current ranges:"
+echo "     cactus user). It carves ONE slice per teststack POD, sized by podman to the pod's max image"
+echo "     UID/GID (measured ~1024 today, but can grow if an image switches to a high-UID base). Pool"
+echo "     must be large (1048576 = headroom past 200+ concurrent tests) AND start clear of existing"
+echo "     /etc/sub{u,g}id entries (overlapping ranges break userns isolation). Pick a start above all"
+echo "     current ranges:"
 echo "       # inspect existing allocations first:  cat /etc/subuid /etc/subgid"
 echo "       for f in /etc/subuid /etc/subgid; do"
-echo "         grep -q '^containers:' \"\$f\" || echo 'containers:11000000:10485760' >> \"\$f\""
+echo "         grep -q '^containers:' \"\$f\" || echo 'containers:11000000:1048576' >> \"\$f\""
 echo "       done   # if a containers: line already exists but is too small, edit it by hand"
 echo "       # some podman builds resolve 'containers' via NSS — if so: useradd --system --no-create-home containers"
 echo "       podman system migrate"
