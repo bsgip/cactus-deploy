@@ -47,6 +47,32 @@ podman pull "$CACTUS_UI_IMAGE"
 podman pull "$CACTUS_CLIENT_NOTIFICATIONS_IMAGE"
 
 # --------------------------------------------------------------------------- #
+# Database migration check                                                     #
+# --------------------------------------------------------------------------- #
+# The new orchestrator image bakes in the alembic head it expects (see
+# docker/cactus-orchestrator/Dockerfile). Refuse to deploy if the database
+# hasn't been migrated to that revision yet - alembic migrations are applied
+# manually (see server/README.md), not run automatically on startup.
+echo "==> Checking database migration status..."
+EXPECTED_HEAD=$(podman run --rm --entrypoint cat "$CACTUS_ORCHESTRATOR_IMAGE" /app/ALEMBIC_HEAD)
+SYNC_DB_URL="${ORCHESTRATOR_DATABASE_URL/+asyncpg/}"
+ACTUAL_HEAD=$(podman run --rm --network cactus-net --entrypoint psql "$CACTUS_ORCHESTRATOR_IMAGE" \
+    "$SYNC_DB_URL" -tAc "select version_num from alembic_version;" | tr -d '[:space:]')
+
+if [ -z "$ACTUAL_HEAD" ]; then
+    echo "ERROR: could not read alembic_version from the database (not initialised?)."
+    exit 1
+fi
+if [ "$EXPECTED_HEAD" != "$ACTUAL_HEAD" ]; then
+    echo "ERROR: database migration is out of date."
+    echo "  New image expects head: $EXPECTED_HEAD"
+    echo "  Database is at:         $ACTUAL_HEAD"
+    echo "Run 'uv run alembic upgrade head' (from cactus-orchestrator, against ORCHESTRATOR_DATABASE_URL) before deploying."
+    exit 1
+fi
+echo "Migration check passed (head: $EXPECTED_HEAD)"
+
+# --------------------------------------------------------------------------- #
 # Pre-pull teststack images                                                    #
 # --------------------------------------------------------------------------- #
 # The orchestrator lazily pulls any missing teststack image on first spawn, but pre-pulling here keeps

@@ -206,6 +206,11 @@ containers themselves are not started here — the orchestrator creates them at 
 pull any teststack image still missing on first spawn (so the pre-pull is just there to keep that first
 spawn warm).
 
+Before touching any running containers, `update.sh` checks that the database has already been
+migrated to the alembic head the new `cactus-orchestrator` image expects (baked into the image at
+build time) and **aborts the deploy** if it hasn't — run step (6) above (`alembic upgrade head`)
+against `ORCHESTRATOR_DATABASE_URL` first.
+
 Verify all three containers are running:
 
 ```bash

@@ -119,6 +119,8 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         # Pass URL-encoded client certificate to envoy (CERT_HEADER=ssl-client-cert)
         proxy_set_header ssl-client-cert   $ssl_client_escaped_cert;
+        # Epoch time when nginx started proxying upstream; cactus-runner records this
+        proxy_set_header X-Request-Start   "t=${msec}";
 
         proxy_read_timeout 300;
         proxy_send_timeout 300;
