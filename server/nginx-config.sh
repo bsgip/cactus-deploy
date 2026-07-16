@@ -1,13 +1,33 @@
 #!/bin/bash
-# Generates a nginx config file (via stdout) using the cactus.env values
+# Generates an nginx configuration file (via stdout) using the cactus.env values.
+#
+# Usage: nginx-config.sh <der|webui|http> [path-to-cactus.env]
+#
+#   der   — DER device-facing server block; mTLS + AES-128-CCM8; routes to Traefik
+#   webui — operator-facing UI server block; standard TLS; routes to cactus-ui
+#   http  — top-level http block (for templating /etc/nginx/nginx.conf)
 
 set -euo pipefail
 
-ENV_FILE="${1:-./cactus.env}"
+MODE="${1:-}"
+ENV_FILE="${2:-./cactus.env}"
+
+usage() {
+    echo "Usage: sudo $0 <der|webui|http> [path-to-cactus.env]"
+}
+
+case "$MODE" in
+    der|webui|http) ;;
+    *)
+        echo "ERROR: unknown mode: ${MODE:-<none>}"
+        usage
+        exit 1
+        ;;
+esac
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "ERROR: env file not found: $ENV_FILE"
-    echo "Usage: sudo $0 <path-to-cactus.env>"
+    usage
     exit 1
 fi
 
@@ -18,7 +38,7 @@ set +a
 
 export CACTUS_FQDN_REGEX="${CACTUS_FQDN//./\\.}"
 
-# We only want specific variables to substitute into our nginx conf template 
+# We only want specific variables to substitute into our nginx conf template
 # (nginx has many of its own vars we don't want to touch)
 #
 # ONLY the variables defined here will substitute in the template below
@@ -56,26 +76,18 @@ if (( ${#missing_vars[@]} > 0 )); then
     exit 1
 fi
 
+render_der() {
 envsubst "$ENVSUBST_VARS" <<"EOF"
-# nginx configuration for the Cactus platform (Podman-based deployment).
+# --- DER Client domain(s)
 #
-# Two virtual hosts:
-#   *.CACTUS_FQDN — DER device-facing; mTLS + AES-128-CCM8; routes to Traefik
-#   CACTUS_FQDN — operator-facing UI; standard TLS; routes to cactus-ui
+# *.CACTUS_FQDN — DER device-facing; mTLS + AES-128-CCM8; routes to Traefik
 #
 # Traefik listens on 127.0.0.1:5001 (mapped from its container port 80).
-# cactus-ui listens on 127.0.0.1:5000 (mapped from its container port 8080).
-# cactus-client-notifications listens on 127.0.0.1:5002 (mapped from its container port 8080).
 #
 # NOTE: AES-128-CCM8 (ECDHE-ECDSA-AES128-CCM8) is required by IEEE 2030.5.  It is not
 # supported by standard OpenSSL builds.  nginx must be compiled against an OpenSSL version
 # with CCM cipher support enabled (OpenSSL 1.1.1+ with -DOPENSSL_EXTRA_CCM or equivalent).
 # Verify with: nginx -V 2>&1 | grep -o 'OpenSSL [0-9.]*'  and  openssl ciphers | grep CCM8
-#
-# Process this file with envsubst before placing in /etc/nginx/sites-enabled/:
-#   envsubst < nginx.conf.template > /etc/nginx/sites-enabled/cactus
-
-# --- DER Client domain(s)
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
@@ -108,11 +120,11 @@ server {
     location ~ ^(${ENVOY_PREFIX}|/\.well-known)(/.*)?$ {
         proxy_pass http://127.0.0.1:5001;
         proxy_http_version 1.1;
- 
+
         # All incoming headers are forwarded by default; these are
         # additionally set/overridden on top of that.
         proxy_pass_request_headers on;
- 
+
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -127,7 +139,23 @@ server {
     }
 }
 
+# Redirect HTTP → HTTPS
+server {
+    listen 80;
+    server_name ~^.+\.${CACTUS_FQDN_REGEX}$;
+    return 301 https://$host$request_uri;
+}
+EOF
+}
+
+render_webui() {
+envsubst "$ENVSUBST_VARS" <<"EOF"
 # --- Web UI domain
+#
+# CACTUS_FQDN — operator-facing UI; standard TLS; routes to cactus-ui
+#
+# cactus-ui listens on 127.0.0.1:5000 (mapped from its container port 8080).
+# cactus-client-notifications listens on 127.0.0.1:5002 (mapped from its container port 8080).
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
@@ -167,11 +195,42 @@ server {
     }
 }
 
-# Redirect HTTP → HTTPS for both domains
+# Redirect HTTP → HTTPS
 server {
     listen 80;
-    server_name ~^.+\.${CACTUS_FQDN_REGEX}$ ${CACTUS_FQDN};
+    server_name ${CACTUS_FQDN};
     return 301 https://$host$request_uri;
 }
-
 EOF
+}
+
+render_http() {
+    # A "default" nginx.conf http block. Not yet templated against cactus.env —
+    # placeholder until the top-level nginx.conf needs its own substituted values.
+    cat <<"EOF"
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile           on;
+    keepalive_timeout  65;
+
+    gzip on;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Logging
+    log_format journal_plain '[$time_iso8601] $remote_addr "$request_method $request_uri" $status ${request_time}s cipher="$ssl_cipher" received=$request_length sent=$bytes_sent';
+    access_log /var/log/nginx/access.log journal_plain;
+    error_log /var/log/nginx/error.log warn;
+
+    include /etc/nginx/sites-enabled/*;
+}
+EOF
+}
+
+case "$MODE" in
+    der)   render_der ;;
+    webui) render_webui ;;
+    http)  render_http ;;
+esac

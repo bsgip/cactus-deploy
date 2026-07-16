@@ -163,10 +163,19 @@ setup:
 1. Install your custom nginx build and confirm the cipher: `openssl ciphers | grep -c CCM8` (must be ≥1).
 2. Place the device-facing TLS material at the `cactus.env` paths the config renders:
    `CERT_ENVOY_EE_FULLCHAIN_PATH`, `CERT_ENVOY_EE_KEY_PATH`, and the `CERT_SERCA_PATH` trust anchor.
-3. Render the config template into your nginx layout. A from-source build has no Debian
-   `sites-available`/`sites-enabled` split — place it wherever your build `include`s configs:
+3. Render the config template into your nginx layout. `nginx-config.sh` emits one block per
+   invocation — `der` (device-facing vhost), `webui` (operator-facing vhost), or `http` (top-level
+   `http {}` block for `/etc/nginx/nginx.conf`) — reading `cactus.env` from the second argument
+   (defaults to `./cactus.env`).
    ```bash
-   ./nginx-config.sh > <your-nginx-conf-path>
+   # Create nginx config
+   ./nginx-config.sh der cactus.env   > /etc/nginx/sites-available/etc.cactus.cecs.anu.edu.au
+   ./nginx-config.sh webui cactus.env > /etc/nginx/sites-available/cactus.cecs.anu.edu.au
+   ./nginx-config.sh http cactus.env  > /etc/nginx/nginx.conf
+
+   # Link it to sites-enabled
+   ln -s /etc/nginx/sites-available/etc.cactus.cecs.anu.edu.au /etc/nginx/sites-enabled/etc.cactus.cecs.anu.edu.au
+   ln -s /etc/nginx/sites-available/cactus.cecs.anu.edu.au /etc/nginx/sites-enabled/cactus.cecs.anu.edu.au
    ```
 4. Issue the orchestration-domain (UI) certificate. The template references
    `/etc/letsencrypt/live/${CACTUS_FQDN}/...`; obtain it however suits the host (e.g.
