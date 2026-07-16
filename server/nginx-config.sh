@@ -208,6 +208,18 @@ render_http() {
     # A "default" nginx.conf http block. Not yet templated against cactus.env —
     # placeholder until the top-level nginx.conf needs its own substituted values.
     cat <<"EOF"
+user www-data;
+worker_processes auto;
+worker_cpu_affinity auto;
+pid /run/nginx.pid;
+error_log /var/log/nginx/error.log;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+	worker_connections 768;
+	# multi_accept on;
+}
+
 http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
