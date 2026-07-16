@@ -29,7 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Record the alembic head this image expects, so update.sh can refuse to deploy
 # against a database that hasn't had this migration applied yet.
-RUN uv run alembic heads | awk '{print $1}' > /app/ALEMBIC_HEAD && \
+# --no-sync: `uv run` re-syncs the environment, breaking --no-editable above
+RUN uv run --no-sync alembic heads | awk '{print $1}' > /app/ALEMBIC_HEAD && \
     test "$(wc -l < /app/ALEMBIC_HEAD)" -eq 1
 
 # RUN stage
