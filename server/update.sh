@@ -113,11 +113,13 @@ echo "Done. Pulled: ${pulled}, already present: ${already_present}"
 # --------------------------------------------------------------------------- #
 echo "==> Deploying cactus-orchestrator..."
 podman rm -f cactus-orchestrator 2>/dev/null || true
+# /tmp is tmpfs so the power-limit-chart's postgres (initdb + restore) runs at RAM
 podman run -d \
     --name cactus-orchestrator \
     --restart always \
     --network cactus-net \
     -p 127.0.0.1:8000:8080 \
+    --tmpfs /tmp:rw,size=2g,mode=1777 \
     --group-add "$(getent group cactus | cut -d: -f3)" \
     -v /run/podman/podman.sock:/run/podman/podman.sock:z \
     -v "${CERT_SERCA_PATH}:${CERT_SERCA_PATH}:ro,z" \
