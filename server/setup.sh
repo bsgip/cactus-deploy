@@ -73,6 +73,9 @@ echo "==> Enabling Podman socket (rootful)..."
 systemctl enable --now podman.socket
 echo "    Socket: $(ls -la /run/podman/podman.sock)"
 
+echo "==> Ensuring podman recovers on reboot"
+systemctl enable podman-restart.service
+
 echo "==> Adding podman socket to cactus group"
 socket_conf_changed=0
 
@@ -119,35 +122,7 @@ grep -qxF "$container_host_line" "${HOME_DIR}/.bashrc" 2>/dev/null \
 echo "==> Creating cactus-net..."
 podman network exists cactus-net && echo "    Already exists, skipping." || podman network create cactus-net
 
-# --------------------------------------------------------------------------- #
-# Traefik                                                                     #
-# --------------------------------------------------------------------------- #
-echo "==> Starting Traefik..."
 
-
-# Routes are discovered from container labels on cactus-net. Each teststack's runner carries the
-# PathPrefix router plus a per-stack StripPrefix middleware, so teststack routing is created
-# dynamically as the orchestrator spawns runners — no static Traefik config needed here.
-#
-# Skip if already running so re-runs don't drop in-flight teststack routing (podman rm -f traefik to refresh).
-TRAEFIK_IMAGE="docker.io/library/traefik:v3"
-if podman container exists traefik; then
-    echo "    traefik already exists, skipping (podman rm -f traefik to force a refresh)."
-else
-    podman image pull "$TRAEFIK_IMAGE"
-    podman run -d \
-        --name traefik \
-        --restart always \
-        --network cactus-net \
-        -v /run/podman/podman.sock:/var/run/docker.sock:z \
-        -p 127.0.0.1:5001:80 \
-        "$TRAEFIK_IMAGE" \
-            --providers.docker=true \
-            --providers.docker.endpoint=unix:///var/run/docker.sock \
-            --providers.docker.exposedbydefault=false \
-            --providers.docker.network=cactus-net \
-            --entrypoints.web.address=:80
-fi
 
 # --------------------------------------------------------------------------- #
 # Certificate directories                                                     #

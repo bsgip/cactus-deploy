@@ -109,6 +109,48 @@ echo "Done. Pulled: ${pulled}, already present: ${already_present}"
  
 
 # --------------------------------------------------------------------------- #
+# Traefik                                                                     #
+# --------------------------------------------------------------------------- #
+echo "==> Starting Traefik..."
+
+
+# Routes are discovered from container labels on cactus-net. Each teststack's runner carries the
+# PathPrefix router plus a per-stack StripPrefix middleware, so teststack routing is created
+# dynamically as the orchestrator spawns runners — no static Traefik config needed here.
+#
+# Skip if already running so re-runs don't drop in-flight teststack routing (podman rm -f traefik to refresh).
+TRAEFIK_IMAGE="docker.io/library/traefik:v3"
+TRAEFIK_CONTAINER="traefik"
+TRAEFIK_STATUS=$(podman inspect -f '{{.State.Status}}' "$TRAEFIK_CONTAINER" 2>/dev/null)
+
+if [ -z "$TRAEFIK_STATUS" ]; then
+    echo "Container '$TRAEFIK_CONTAINER' does not exist. It will be created."
+    podman image pull "$TRAEFIK_IMAGE"
+    podman run -d \
+        --name "$TRAEFIK_CONTAINER" \
+        --restart always \
+        --network cactus-net \
+        -v /run/podman/podman.sock:/var/run/docker.sock:z \
+        -p 127.0.0.1:5001:80 \
+        "$TRAEFIK_IMAGE" \
+            --providers.docker=true \
+            --providers.docker.endpoint=unix:///var/run/docker.sock \
+            --providers.docker.exposedbydefault=false \
+            --providers.docker.network=cactus-net \
+            --entrypoints.web.address=:80
+
+elif [ "$TRAEFIK_STATUS" = "exited" ]; then
+    echo "Container '$TRAEFIK_CONTAINER' exists but is stopped/exited. It will be started."
+    podman container start "$TRAEFIK_CONTAINER"
+elif [ "$TRAEFIK_STATUS" = "running" ]; then
+    echo "Container '$TRAEFIK_CONTAINER' is currently running. Doing nothing."
+else
+    echo "Container '$TRAEFIK_CONTAINER' is in an unexpected state: $TRAEFIK_STATUS"
+    echo "Exiting - unsure what to do re: '$TRAEFIK_CONTAINER'"
+    exit 1
+fi
+
+# --------------------------------------------------------------------------- #
 # cactus-orchestrator                                                          #
 # --------------------------------------------------------------------------- #
 echo "==> Deploying cactus-orchestrator..."

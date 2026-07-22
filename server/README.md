@@ -61,7 +61,9 @@ Ubuntu 24.04.  `setup.sh` installs Podman and Traefik and pre-pulls images, but 
    - If hosted locally - you will need to ensure that the `cactus-net` gateway IP is accepted by postgres.hba
    - To discover: `podman network inspect cactus-net` - Look for `subnets.gateway` and `subnets.subnet` eg `10.89.0.0/24` and `10.89.0.1`
    - Update `pg_hba.conf` with `host    all             all             10.89.0.1/24            scram-sha-256`
-   - Update `postgres.conf` with `listen_addresses = 'localhost,10.89.0.1'`
+   - Update `postgres.conf` with either:
+       - `listen_addresses = '*'` (for general use)
+       - `listen_addresses = 'localhost,10.89.0.1'` (requires postgres startup to run AFTER podman or the IP won't exist)
    - Restart postgresql
 - Container registry credentials available if using a private registry.
 - A custom-compiled, CCM8-capable nginx (see the cipher note below) — `setup.sh` does **not** install or
