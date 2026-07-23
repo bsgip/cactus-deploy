@@ -121,7 +121,10 @@ echo "==> Starting Traefik..."
 # Skip if already running so re-runs don't drop in-flight teststack routing (podman rm -f traefik to refresh).
 TRAEFIK_IMAGE="docker.io/library/traefik:v3"
 TRAEFIK_CONTAINER="traefik"
+
+set +e
 TRAEFIK_STATUS=$(podman inspect -f '{{.State.Status}}' "$TRAEFIK_CONTAINER" 2>/dev/null)
+set -e
 
 if [ -z "$TRAEFIK_STATUS" ]; then
     echo "Container '$TRAEFIK_CONTAINER' does not exist. It will be created."
