@@ -92,7 +92,10 @@ jobs:
             else
               echo "\`$old_ver\` changed to \`$ver\`" >> versions/changes
               echo "" >> versions/changes
-              gh release view $ver --repo "${ORG}/${REPO}" --json body -q .body >> versions/changes
+              gh release view $ver --repo "${ORG}/${REPO}" --json body -q .body >> versions/changes || {
+                echo "> [!NOTE]"
+                echo "> No GitHub release notes published for \`$ver\`. [Compare on GitHub](https://github.com/${ORG}/${REPO}/compare/${old_ver}...${ver})"
+              } >> versions/changes
             fi
             echo "" >> versions/changes
           done < versions/current
