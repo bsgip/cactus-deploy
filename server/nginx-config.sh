@@ -102,7 +102,7 @@ server {
 
     # TLS 1.2 + CCM8 supported (last) for 2030.5 clients, not enforced.
     ssl_protocols TLSv1.2;
-    ssl_ciphers ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES256:ECDH+AES128:!aDH:!ECDH+3DES:!RSA+3DES:!MD5:!DSS:ECDHE-ECDSA-AES128-CCM8;
+    ssl_ciphers ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES256:ECDH+AES128:!aNULL:!aDH:!ECDH+3DES:!RSA+3DES:!MD5:!DSS:ECDHE-ECDSA-AES128-CCM8:@SECLEVEL=0;
     ssl_prefer_server_ciphers on;
 
     # mTLS against SERCA. Depth 3: device (MCA→MICA) or aggregator (PCA→ICA) → client cert.
