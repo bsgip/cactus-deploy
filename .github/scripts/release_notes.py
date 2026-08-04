@@ -66,9 +66,9 @@ PR_BULLET = re.compile(
 CLIENT_PROCEDURES = "cactus_test_definitions/client/procedures"
 CLIENT_PROCEDURE_FILE = re.compile(rf"^{CLIENT_PROCEDURES}/[^/]+\.yaml$")
 
-# The one degradation message. A section says this instead of quietly reporting less than it
-# should, because a missing section is indistinguishable from nothing having changed.
-UNREADABLE = "Some details could not be read from GitHub when these notes were generated."
+UNREADABLE = (
+    "Some details could not be read from GitHub when these notes were generated."
+)
 
 
 def fetch(url: str, accept: str = "application/vnd.github+json") -> bytes | None:
@@ -177,7 +177,9 @@ def test_definitions_version(ref: str) -> str | None:
         return None
     for package in lock.get("package", []):
         if package.get("name") == TEST_DEFINITIONS:
-            return None if "git" in package.get("source", {}) else package.get("version")
+            return (
+                None if "git" in package.get("source", {}) else package.get("version")
+            )
     return None
 
 
@@ -219,7 +221,6 @@ def build_test_definitions(
         entry["notes"].append(UNREADABLE)
 
     # An orchestrator bump can skip several test-definitions releases, so walk all of (old, new]
-    # rather than just the endpoint.
     low, high = version_sort_key(old), version_sort_key(new)
     releases = api_json(f"/repos/{TEST_DEFINITIONS_REPO}/releases?per_page=100") or []
     in_range = sorted(
@@ -237,12 +238,8 @@ def build_test_definitions(
 
 
 def count_procedures(old: str, new: str) -> dict | None:
-    """How many client test procedures were edited between two test-definitions versions.
+    """How many client test procedures were edited between two test-definitions versions."""
 
-    One YAML file per procedure id, so this is a path diff - no YAML is parsed and no procedure
-    ids are listed. It exists to prompt someone to go and look, so it stays a handful of numbers
-    however large the release is.
-    """
     compare = api_json(f"/repos/{TEST_DEFINITIONS_REPO}/compare/v{old}...v{new}")
     if not isinstance(compare, dict) or "files" not in compare:
         return None
@@ -286,7 +283,6 @@ def render_section(
 
 
 def render_procedure_count(procedures: dict | None) -> str | None:
-    """Deliberately says "modified", not "changed behaviour" - a formatting sweep counts too."""
     counts = [
         f"{procedures[status]} {status}"
         for status in ("modified", "added", "removed")
