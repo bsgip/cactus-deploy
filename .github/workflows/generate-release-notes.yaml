@@ -21,13 +21,29 @@ jobs:
         run: |
           CURRENT_TAG=${GITHUB_REF_NAME}
           echo "Current tag: $CURRENT_TAG"
-          PREV_TAG=$(git tag --sort=-creatordate | grep -A1 "$CURRENT_TAG" | tail -n1)
+
+          # Branch-deploy tags (release-podman21) build images, but don't mint GitHub releases.
+          if ! [[ "$CURRENT_TAG" =~ ^release-[0-9]+$ ]]; then
+            echo "Not a numbered release - skipping release notes."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Highest numbered release below this one. Ordering is by release number, not creatordate:
+          PREV_NUM=$(git tag -l 'release-*' | sed -n 's/^release-\([0-9]\+\)$/\1/p' | sort -n \
+            | awk -v n="${CURRENT_TAG#release-}" '$1 < n' | tail -n1)
+          if [ -z "$PREV_NUM" ]; then
+            echo "ERROR: no numbered release tag older than $CURRENT_TAG"
+            exit 1
+          fi
+          PREV_TAG="release-$PREV_NUM"
           echo "Previous tag: $PREV_TAG"
           echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
           echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
       - name: Get versions files for current and previous tags
         id: versions
+        if: steps.tags.outputs.skip != 'true'
         run: |
           mkdir versions
           git show ${{ steps.tags.outputs.previous_tag }}:docker/versions.lock > versions/previous
@@ -36,6 +52,7 @@ jobs:
 
       - name: Generate Release Notes
         id: notes
+        if: steps.tags.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -104,6 +121,7 @@ jobs:
           cat versions/changes
 
       - name: Create GitHub Release
+        if: steps.tags.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tags.outputs.current_tag }}
