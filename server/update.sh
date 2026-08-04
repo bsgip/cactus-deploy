@@ -73,6 +73,27 @@ fi
 echo "Migration check passed (head: $EXPECTED_HEAD)"
 
 # --------------------------------------------------------------------------- #
+# Deploy history                                                               #
+# --------------------------------------------------------------------------- #
+# Append-only trail of what has been deployed here, surfaced by the UI.
+
+# Only inserts when the tag differs from the most recent row, so re-running update.sh for the same
+# release doesn't spam rows. A rollback to an earlier tag *does* insert - ordering is by created_at.
+echo "==> Recording deploy history..."
+CURRENT_TAG="${CACTUS_ORCHESTRATOR_IMAGE##*:}"
+LATEST_TAG=$(podman run --rm --network cactus-net --entrypoint psql "$CACTUS_ORCHESTRATOR_IMAGE" \
+    "$SYNC_DB_URL" -tAc "select release_tag from deploy_release order by created_at desc limit 1;" \
+    | tr -d '[:space:]')
+
+if [ "$CURRENT_TAG" = "$LATEST_TAG" ]; then
+    echo "Already recorded as the current deploy: $CURRENT_TAG"
+else
+    podman run --rm --network cactus-net --entrypoint psql "$CACTUS_ORCHESTRATOR_IMAGE" \
+        "$SYNC_DB_URL" -c "insert into deploy_release (release_tag) values ('$CURRENT_TAG');"
+    echo "Recorded deploy: $CURRENT_TAG"
+fi
+
+# --------------------------------------------------------------------------- #
 # Pre-pull teststack images                                                    #
 # --------------------------------------------------------------------------- #
 # The orchestrator lazily pulls any missing teststack image on first spawn, but pre-pulling here keeps
