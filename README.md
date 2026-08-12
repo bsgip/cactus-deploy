@@ -50,3 +50,15 @@ Key phases include:
 Versioning of the platform components is tracked centrally. Each tag in this repository (e.g., release-1, release-2) corresponds to a stable combination of component versions.
 
 Versions of the components used in any given build are defined in [versions.lock](./docker/versions.lock).
+
+### Release notes
+
+Tagging `release-<N>` runs [generate-release-notes.yaml], which diffs `versions.lock` against the previous **numbered** 
+release and publishes a GitHub release. Non numeric deploy tags (`release-podman21`) still build images via
+`build-push.yaml` but are skipped for release notes.
+
+Two outputs of the release notes script:md body for github UI, and `release-notes.json` release asset for the cactus-ui.
+
+Test procedure versions are derived from cactus-orchestrator's `uv.lock`. Since they are so helpful for clients, we do a 
+full check of all commits between releases (e.g. if we deploy a version that skips several tags), and report how many
+client test procedures were modified, added and removed between those two test-defs versions.

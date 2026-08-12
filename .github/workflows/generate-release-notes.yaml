@@ -21,13 +21,29 @@ jobs:
         run: |
           CURRENT_TAG=${GITHUB_REF_NAME}
           echo "Current tag: $CURRENT_TAG"
-          PREV_TAG=$(git tag --sort=-creatordate | grep -A1 "$CURRENT_TAG" | tail -n1)
+
+          # Branch-deploy tags (release-podman21) build images, but don't mint GitHub releases.
+          if ! [[ "$CURRENT_TAG" =~ ^release-[0-9]+$ ]]; then
+            echo "Not a numbered release - skipping release notes."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Highest numbered release below this one. Ordering is by release number, not creatordate:
+          PREV_NUM=$(git tag -l 'release-*' | sed -n 's/^release-\([0-9]\+\)$/\1/p' | sort -n \
+            | awk -v n="${CURRENT_TAG#release-}" '$1 < n' | tail -n1)
+          if [ -z "$PREV_NUM" ]; then
+            echo "ERROR: no numbered release tag older than $CURRENT_TAG"
+            exit 1
+          fi
+          PREV_TAG="release-$PREV_NUM"
           echo "Previous tag: $PREV_TAG"
           echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
           echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
       - name: Get versions files for current and previous tags
         id: versions
+        if: steps.tags.outputs.skip != 'true'
         run: |
           mkdir versions
           git show ${{ steps.tags.outputs.previous_tag }}:docker/versions.lock > versions/previous
@@ -36,75 +52,25 @@ jobs:
 
       - name: Generate Release Notes
         id: notes
+        if: steps.tags.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "# CACTUS Deploy ${{ steps.tags.outputs.current_tag }}" > versions/changes
-          echo "The following are the change notes for every software component from \`${{ steps.tags.outputs.previous_tag }}\` to \`${{ steps.tags.outputs.current_tag }}\`" >> versions/changes
-          echo "" >> versions/changes
-          while IFS='=' read -r dep ver; do
-            [ -z "$dep" ] && continue
-            old_ver=$(grep "^$dep=" versions/previous | cut -d= -f2)
-
-            ORG="bsgip"
-            REPO=""
-            NAME=""
-
-            if [ "$dep" == "CACTUS_ORCHESTRATOR_VERSION" ]; then
-              REPO="cactus-orchestrator"
-              NAME="Orchestrator"
-            elif [ "$dep" == "CACTUS_UI_VERSION" ]; then
-              REPO="cactus-ui"
-              NAME="Web UI"
-            elif [ "$dep" == "CACTUS_CLIENT_NOTIFICATIONS_VERSION" ]; then
-              REPO="cactus-client-notifications"
-              NAME="Client Notifications"
-            elif [ "$dep" == "V12_CACTUS_RUNNER_VERSION" ]; then
-              REPO="cactus-runner"
-              NAME="Test Runner (v1.2)"
-            elif [ "$dep" == "V12_ENVOY_VERSION" ]; then
-              REPO="envoy"
-              NAME="Utility Server (v1.2)"
-            elif [ "$dep" == "V13_STORAGE_BETA_CACTUS_RUNNER_VERSION" ]; then
-              REPO="cactus-runner"
-              NAME="Test Runner (v1.3-storage-beta)"
-              ORG="synergy-au"
-            elif [ "$dep" == "V13_STORAGE_BETA_ENVOY_VERSION" ]; then
-              REPO="envoy"
-              NAME="Utility Server (v1.3-storage-beta)"
-              ORG="synergy-au"
-            elif [ "$dep" == "V13_CACTUS_RUNNER_VERSION" ]; then
-              REPO="cactus-runner"
-              NAME="Test Runner (v1.3)"
-            elif [ "$dep" == "V13_ENVOY_VERSION" ]; then
-              REPO="envoy"
-              NAME="Utility Server (v1.3)"
-            else
-              echo "" >> versions/changes
-              echo "> [!CAUTION]" >> versions/changes
-              echo "> Unrecognised Dependency \`$dep\`" >> versions/changes
-              continue
-            fi
-
-            echo "## $NAME" >> versions/changes
-            if [ "$old_ver" == "$ver" ]; then
-              echo "No change from \`$ver\`" >> versions/changes
-            else
-              echo "\`$old_ver\` changed to \`$ver\`" >> versions/changes
-              echo "" >> versions/changes
-              gh release view $ver --repo "${ORG}/${REPO}" --json body -q .body >> versions/changes
-            fi
-            echo "" >> versions/changes
-          done < versions/current
-
-          echo "Generated Release Notes:"
-          cat versions/changes
+          python3 .github/scripts/release_notes.py \
+            --previous "${{ steps.tags.outputs.previous_tag }}" \
+            --current "${{ steps.tags.outputs.current_tag }}" \
+            --previous-lock versions/previous \
+            --current-lock versions/current \
+            --out-markdown versions/changes \
+            --out-json versions/release-notes.json
 
       - name: Create GitHub Release
+        if: steps.tags.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tags.outputs.current_tag }}
           name: ${{ steps.tags.outputs.current_tag }}
           body_path: versions/changes
+          files: versions/release-notes.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
