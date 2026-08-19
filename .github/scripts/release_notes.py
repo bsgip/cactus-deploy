@@ -283,6 +283,8 @@ def render_section(
 
 
 def render_procedure_count(procedures: dict | None) -> str | None:
+    if procedures is None:
+        return None
     counts = [
         f"{procedures[status]} {status}"
         for status in ("modified", "added", "removed")
