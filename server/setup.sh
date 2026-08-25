@@ -138,6 +138,14 @@ echo "    dirs 750 / files 640 so the orchestrator's 'cactus' group can read the
 echo "    See ../pki/README.md and ../pki/create-cert.sh."
 
 # --------------------------------------------------------------------------- #
+# File store directories                                                      #
+# --------------------------------------------------------------------------- #
+echo "==> Creating file store directory FILE_STORE_PATH $FILE_STORE_PATH"
+mkdir -p "$FILE_STORE_PATH"
+chmod 770 "$FILE_STORE_PATH"
+chown -R $USER_NAME:$GROUP_NAME "$FILE_STORE_PATH"
+
+# --------------------------------------------------------------------------- #
 # nginx / TLS edge — intentionally NOT handled here                           #
 # --------------------------------------------------------------------------- #
 # The device-facing vhost requires AES-128-CCM8 (IEEE 2030.5), which stock
